@@ -1,0 +1,265 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../kidoo-shared/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TagType {
+  MUSIC
+  STORY
+  SOUND
+}
+
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  avatar        String?
+  password      String? // Pour l'authentification par mot de passe
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  kidoos        Kidoo[]
+  tags          Tag[]
+  files File[]
+
+  @@map("users")
+}
+
+model Kidoo {
+  id                String   @id @default(uuid())
+  name              String
+  model             String   @default("classic") // Modèle du Kidoo (classic, mini, pro, etc.)
+  macAddress        String?  // Adresse MAC WiFi (renvoyée par l'ESP32 lors du setup)
+  bluetoothMacAddress String? // Adresse MAC Bluetooth (pour comparer lors des scans automatiques)
+  deviceId          String   @unique // UUID du device BLE
+  firmwareVersion   String?
+  lastConnected     DateTime?
+  isConnected       Boolean  @default(false)
+  wifiSSID          String?  // Lecture seule, pour affichage uniquement (modification via Bluetooth uniquement)
+  userId            String?
+  isSynced          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  brightness        Int       @default(100) // Luminosité (10-100)
+  sleepTimeout      Int       @default(30000) // Timeout de sommeil en ms (5000-300000)
+  
+  // Configuration du sleep mode (mode veille)
+  sleepColorR       Int?      // Composante rouge de la couleur de veille (0-255, null si non configuré)
+  sleepColorG       Int?      // Composante verte de la couleur de veille (0-255, null si non configuré)
+  sleepColorB       Int?      // Composante bleue de la couleur de veille (0-255, null si non configuré)
+  sleepEffect       Int?      // Effet LED pour le sleep mode (0 = LED_EFFECT_NONE, null si non configuré)
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags         Tag[]
+  configBasic  KidooConfigBasic? // Configuration spécifique au modèle Basic (relation 1:1)
+  configDream  KidooConfigDream? // Configuration spécifique au modèle Dream (relation 1:1)
+
+  @@map("kidoos")
+  @@index([userId])
+  @@index([deviceId])
+  @@index([model])
+}
+
+model Tag {
+  id          String   @id @default(uuid()) // Clé primaire générée par Prisma
+  tagId       String?  @unique // UUID généré par l'app et écrit sur le tag NFC (nullable temporairement pour migration)
+  uid         String?  // UID du tag NFC (lecture seule, identifiant matériel du tag physique) - null jusqu'à la lecture du tag
+  name        String?  // Nom optionnel pour le tag
+  type        TagType? // Type du tag (enum: MUSIC, STORY, SOUND)
+  kidooId     String
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  kidoo       Kidoo    @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  multimediaFiles File[]
+
+  @@map("tags")
+  @@index([kidooId])
+  @@index([userId])
+  @@index([uid])
+  @@index([tagId])
+  @@index([type])
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model File {
+  id          String   @id @default(uuid())
+  tagId       String   // ID du tag associé
+  userId      String   // ID de l'utilisateur qui a uploadé le fichier
+  url         String   // URL publique du fichier (Cloudflare R2)
+  path        String   // Chemin dans le bucket (ex: kidooId/tagId/filename)
+  fileName    String   // Nom du fichier
+  originalName String  // Nom original du fichier uploadé
+  size        Int      // Taille du fichier en octets
+  mimeType    String   // Type MIME du fichier (ex: audio/mpeg)
+  order       Int      @default(0) // Ordre d'affichage dans la liste (pour réorganisation)
+  disabled    Boolean  @default(false) // Indique si le fichier est désactivé (en pause)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("files")
+  @@index([tagId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([tagId, order]) // Index composite pour trier par tag et ordre
+}
+
+// Configuration spécifique au modèle Basic
+// Note: Les configurations WiFi ne sont PAS stockées ici (restent sur le device, modifiables uniquement via Bluetooth)
+// Note: sleepTransitionMs est géré nativement par l'ESP32, pas stocké en base
+// Note: Les configurations LED (couleur et effet) ne sont PAS stockées ici (envoyées uniquement via Bluetooth en temps réel)
+model KidooConfigBasic {
+  id                String    @id @default(uuid())
+  kidooId           String    @unique // Relation 1:1 avec Kidoo
+
+  // Données de stockage (dernières valeurs reçues de l'ESP32)
+  storageTotalBytes BigInt?   // Espace total en bytes (null si non disponible)
+  storageFreeBytes  BigInt?   // Espace libre en bytes (null si non disponible)
+  storageUsedBytes  BigInt?   // Espace utilisé en bytes (null si non disponible)
+  storageFreePercent Int?     // Pourcentage d'espace libre (0-100, null si non disponible)
+  storageUsedPercent Int?     // Pourcentage d'espace utilisé (0-100, null si non disponible)
+  storageLastUpdated DateTime? // Date de dernière mise à jour des données de stockage
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  kidoo             Kidoo     @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+
+  @@map("kidoo_config_basic")
+  @@index([kidooId])
+}
+
+// Configuration spécifique au modèle Dream
+// Note: Les configurations WiFi ne sont PAS stockées ici (restent sur le device, modifiables uniquement via Bluetooth)
+model KidooConfigDream {
+  id                String    @id @default(uuid())
+  kidooId           String    @unique // Relation 1:1 avec Kidoo
+
+  // Configuration du rituel de sommeil (bedtime)
+  // Couleur RGB (0-255)
+  colorR            Int?      // Composante rouge de la couleur de coucher (0-255, null si non configuré)
+  colorG            Int?      // Composante verte de la couleur de coucher (0-255, null si non configuré)
+  colorB            Int?      // Composante bleue de la couleur de coucher (0-255, null si non configuré)
+  
+  // Luminosité
+  brightness        Int?      // Luminosité des LEDs pour le coucher (0-255, null si non configuré)
+  
+  // Mode d'allumage
+  allNight          Boolean   @default(false) // Si true, la veilleuse reste allumée toute la nuit, sinon elle s'éteint après une durée définie
+
+  // Effet LED pour le coucher (null = couleur fixe, sinon nom de l'effet)
+  effect            String?   // Effet LED: "none" (couleur fixe), "pulse", "rainbow-soft", "breathe", "nightlight", etc.
+
+  // Configuration du réveil (wake-up)
+  // Couleur RGB pour le réveil (0-255)
+  wakeupColorR      Int?      // Composante rouge de la couleur de réveil (0-255, null si non configuré)
+  wakeupColorG      Int?      // Composante verte de la couleur de réveil (0-255, null si non configuré)
+  wakeupColorB      Int?      // Composante bleue de la couleur de réveil (0-255, null si non configuré)
+  
+  // Luminosité pour le réveil
+  wakeupBrightness  Int?      // Luminosité des LEDs pour le réveil (0-255, null si non configuré)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  kidoo             Kidoo     @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+  bedtimeSchedules  KidooConfigDreamBedtimeSchedule[]
+  wakeupSchedules   KidooConfigDreamWakeupSchedule[]
+
+  @@map("kidoo_config_dream")
+  @@index([kidooId])
+}
+
+// Horaires de coucher par jour de la semaine pour le modèle Dream
+model KidooConfigDreamBedtimeSchedule {
+  id                  String    @id @default(uuid())
+  kidooConfigDreamId  String    // Relation N:1 avec KidooConfigDream
+  
+  weekday             String    // Jour de la semaine: monday, tuesday, wednesday, thursday, friday, saturday, sunday
+  hour                Int       // Heure de coucher (0-23)
+  minute              Int       // Minute de coucher (0-59)
+  activated           Boolean   @default(false) // Si true, le jour est activé pour l'heure de coucher
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  kidooConfigDream    KidooConfigDream @relation(fields: [kidooConfigDreamId], references: [id], onDelete: Cascade)
+
+  @@unique([kidooConfigDreamId, weekday])
+  @@index([kidooConfigDreamId])
+  @@map("kidoo_config_dream_bedtime_schedule")
+}
+
+// Horaires de réveil par jour de la semaine pour le modèle Dream
+model KidooConfigDreamWakeupSchedule {
+  id                  String    @id @default(uuid())
+  kidooConfigDreamId  String    // Relation N:1 avec KidooConfigDream
+  
+  weekday             String    // Jour de la semaine: monday, tuesday, wednesday, thursday, friday, saturday, sunday
+  hour                Int       // Heure de réveil (0-23)
+  minute              Int       // Minute de réveil (0-59)
+  activated           Boolean   @default(false) // Si true, le jour est activé pour l'heure de réveil
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  kidooConfigDream    KidooConfigDream @relation(fields: [kidooConfigDreamId], references: [id], onDelete: Cascade)
+
+  @@unique([kidooConfigDreamId, weekday])
+  @@index([kidooConfigDreamId])
+  @@map("kidoo_config_dream_wakeup_schedule")
+}

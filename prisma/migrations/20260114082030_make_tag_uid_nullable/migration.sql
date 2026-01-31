@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "tags" ALTER COLUMN "uid" DROP NOT NULL;
