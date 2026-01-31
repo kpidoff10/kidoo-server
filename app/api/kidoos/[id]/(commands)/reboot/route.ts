@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
-import { rebootCommandSchema } from '@kidoo/shared';
+import { rebootCommandSchema } from '@/shared';
 
 /**
  * POST /api/kidoos/[id]/commands/reboot

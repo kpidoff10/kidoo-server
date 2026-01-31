@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { loginSchema } from '@kidoo/shared';
+import { loginSchema } from '@/shared';
 import { generateTokens } from '@/lib/jwt';
 
 /**

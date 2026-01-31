@@ -42,5 +42,7 @@ next-env.d.ts
 
 /app/generated/prisma
 
-# Dossier shared copié pour Vercel (généré par prepare-build.js)
-/shared
+# Dossier shared (Git submodule - ne pas ignorer)
+# /shared est un submodule Git, donc ne doit pas être ignoré
+# Si vous n'utilisez pas de submodule, décommentez la ligne suivante:
+# /shared

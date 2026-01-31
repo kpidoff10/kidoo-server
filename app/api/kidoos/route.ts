@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createKidooInputSchema } from '@kidoo/shared';
+import { createKidooInputSchema } from '@/shared';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { KidoosErrors } from './errors';

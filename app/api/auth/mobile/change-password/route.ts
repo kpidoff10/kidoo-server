@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAccessToken, extractTokenFromHeader } from '@/lib/jwt';
 import bcrypt from 'bcryptjs';
-import { changePasswordSchema } from '@kidoo/shared';
+import { changePasswordSchema } from '@/shared';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { ChangePasswordErrors } from './errors';
 

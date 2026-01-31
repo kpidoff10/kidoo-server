@@ -9,8 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
-import { sleepTimeoutCommandSchema, SLEEP_TIMEOUT_LIMITS } from '@kidoo/shared';
-import { Kidoo } from '@kidoo/shared/prisma';
+import { sleepTimeoutCommandSchema, SLEEP_TIMEOUT_LIMITS } from '@/shared';
+import { Kidoo } from '@/shared/prisma';
 
 /**
  * PATCH /api/kidoos/[id]/commands/common/sleep-timeout

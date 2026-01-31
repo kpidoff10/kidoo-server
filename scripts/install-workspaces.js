@@ -1,6 +1,6 @@
 /**
  * Script d'installation pour Vercel avec npm workspaces
- * Installe depuis la racine du monorepo pour avoir accès à kidoo-shared/
+ * Gère le clonage de kidoo-shared si nécessaire (pour Vercel où le monorepo n'est pas disponible)
  */
 
 const { execSync } = require('child_process');
@@ -8,163 +8,116 @@ const path = require('path');
 const fs = require('fs');
 
 // Le script s'exécute depuis kidoo-server/scripts/
-// On monte de 2 niveaux pour atteindre la racine du monorepo
 const rootDir = path.resolve(__dirname, '../..');
 const currentDir = __dirname.replace(/[\\/]scripts$/, '');
+const sharedSourceDir = path.resolve(currentDir, '../kidoo-shared');
+const sharedTargetDir = path.resolve(currentDir, 'shared');
 
 console.log('[INSTALL-WORKSPACES] ==========================================');
 console.log('[INSTALL-WORKSPACES] Installation des workspaces npm...');
 console.log(`[INSTALL-WORKSPACES] Root monorepo: ${rootDir}`);
 console.log(`[INSTALL-WORKSPACES] Dossier actuel: ${currentDir}`);
-console.log(`[INSTALL-WORKSPACES] CWD avant: ${process.cwd()}`);
+console.log(`[INSTALL-WORKSPACES] Source kidoo-shared: ${sharedSourceDir}`);
+console.log(`[INSTALL-WORKSPACES] Cible shared: ${sharedTargetDir}`);
 
-// Vérifier si on est dans un contexte monorepo (racine avec package.json et kidoo-shared/)
-const rootPackageJson = path.join(rootDir, 'package.json');
-const sharedDir = path.join(rootDir, 'kidoo-shared');
+// ÉTAPE 1: Vérifier et préparer kidoo-shared
+let sharedPath = null;
+let needPackageJsonUpdate = false;
 
-console.log(`[INSTALL-WORKSPACES] Root package.json existe: ${fs.existsSync(rootPackageJson)}`);
-console.log(`[INSTALL-WORKSPACES] Shared dir existe: ${fs.existsSync(sharedDir)}`);
-
-if (fs.existsSync(rootPackageJson) && fs.existsSync(sharedDir)) {
-  // D'abord installer React localement dans kidoo-server pour garantir qu'il est disponible
-  console.log('[INSTALL-WORKSPACES] Installation préalable de React dans kidoo-server...');
-  process.chdir(currentDir);
-  console.log(`[INSTALL-WORKSPACES] CWD pour installation React: ${process.cwd()}`);
-  execSync('npm install react@19.1.0 react-dom@19.1.0 --legacy-peer-deps --save-exact', { stdio: 'inherit' });
-  console.log('[INSTALL-WORKSPACES] React installé dans kidoo-server');
+if (fs.existsSync(sharedSourceDir)) {
+  // Cas 1: kidoo-shared existe dans le monorepo (développement local)
+  console.log('[INSTALL-WORKSPACES] kidoo-shared trouvé dans le monorepo');
+  sharedPath = sharedSourceDir;
+} else if (fs.existsSync(sharedTargetDir)) {
+  // Cas 2: shared/ existe déjà (submodule Git ou copié précédemment)
+  console.log('[INSTALL-WORKSPACES] Dossier shared/ existe déjà');
+  sharedPath = sharedTargetDir;
+  needPackageJsonUpdate = true;
+} else {
+  // Cas 3: Sur Vercel, cloner kidoo-shared depuis GitHub
+  console.log('[INSTALL-WORKSPACES] kidoo-shared non trouvé - tentative de clonage depuis GitHub...');
   
-  // Ensuite installer depuis la racine pour les workspaces
-  console.log('[INSTALL-WORKSPACES] Installation depuis la racine du monorepo...');
-  process.chdir(rootDir);
-  console.log(`[INSTALL-WORKSPACES] CWD après chdir: ${process.cwd()}`);
+  const githubRepo = process.env.KIDOO_SHARED_REPO;
+  const githubToken = process.env.GITHUB_TOKEN;
   
-  // S'assurer que React est aussi disponible à la racine pour Next.js
-  // Next.js cherche parfois React depuis la racine du dépôt
-  const rootNodeModules = path.join(rootDir, 'node_modules');
-  const rootReactPath = path.join(rootNodeModules, 'react');
-  
-  if (!fs.existsSync(rootReactPath)) {
-    console.log('[INSTALL-WORKSPACES] React n\'est pas à la racine, installation...');
-    // Créer un package.json temporaire à la racine avec React si nécessaire
-    const rootPackageJsonContent = JSON.parse(fs.readFileSync(rootPackageJson, 'utf8'));
-    if (!rootPackageJsonContent.dependencies) {
-      rootPackageJsonContent.dependencies = {};
-    }
-    if (!rootPackageJsonContent.dependencies.react) {
-      rootPackageJsonContent.dependencies.react = '19.1.0';
-      rootPackageJsonContent.dependencies['react-dom'] = '19.1.0';
-      fs.writeFileSync(rootPackageJson, JSON.stringify(rootPackageJsonContent, null, 2));
-      console.log('[INSTALL-WORKSPACES] React ajouté aux dépendances racine');
-    }
+  if (!githubRepo) {
+    console.error('[INSTALL-WORKSPACES] ERREUR: Variable KIDOO_SHARED_REPO non définie');
+    console.error('[INSTALL-WORKSPACES] Solutions possibles:');
+    console.error('[INSTALL-WORKSPACES] 1. Utiliser Git submodules (recommandé)');
+    console.error('[INSTALL-WORKSPACES]    git submodule add https://github.com/VOTRE_USERNAME/kidoo-shared.git shared');
+    console.error('[INSTALL-WORKSPACES]    Puis activer "Install Git Submodules" sur Vercel');
+    console.error('[INSTALL-WORKSPACES] 2. Définir KIDOO_SHARED_REPO sur Vercel (ex: username/kidoo-shared)');
+    console.error('[INSTALL-WORKSPACES]    Voir VERCEL_SETUP.md pour plus de détails');
+    process.exit(1);
   }
   
-  execSync('npm install --legacy-peer-deps', { stdio: 'inherit' });
-  console.log('[INSTALL-WORKSPACES] Installation terminée depuis la racine');
-  
-  // Vérifier que React est bien installé à la racine
-  const reactRootPath = path.join(rootDir, 'node_modules', 'react');
-  const reactDomRootPath = path.join(rootDir, 'node_modules', 'react-dom');
-  
-  console.log(`[INSTALL-WORKSPACES] React à la racine: ${fs.existsSync(reactRootPath)}`);
-  console.log(`[INSTALL-WORKSPACES] React-dom à la racine: ${fs.existsSync(reactDomRootPath)}`);
-  
-  // S'assurer que les dépendances sont bien accessibles dans kidoo-server
-  console.log('[INSTALL-WORKSPACES] Vérification dans kidoo-server...');
-  process.chdir(currentDir);
-  console.log(`[INSTALL-WORKSPACES] CWD après chdir vers kidoo-server: ${process.cwd()}`);
-  
-  const reactLocalPath = path.join(currentDir, 'node_modules', 'react');
-  const reactDomLocalPath = path.join(currentDir, 'node_modules', 'react-dom');
-  
-  console.log(`[INSTALL-WORKSPACES] React local: ${fs.existsSync(reactLocalPath)}`);
-  console.log(`[INSTALL-WORKSPACES] React-dom local: ${fs.existsSync(reactDomLocalPath)}`);
-  
-  // TOUJOURS installer React directement dans kidoo-server pour garantir qu'il est disponible
-  // npm workspaces peut hoister les dépendances à la racine, mais Next.js les cherche dans kidoo-server/node_modules/
-  // On doit forcer l'installation locale même si npm workspaces veut hoister
-  console.log('[INSTALL-WORKSPACES] Installation forcée de React dans kidoo-server (nécessaire pour Next.js)...');
-  
-  // Créer node_modules s'il n'existe pas
-  const nodeModulesDir = path.join(currentDir, 'node_modules');
-  if (!fs.existsSync(nodeModulesDir)) {
-    fs.mkdirSync(nodeModulesDir, { recursive: true });
-    console.log('[INSTALL-WORKSPACES] Dossier node_modules créé dans kidoo-server');
+  // Construire l'URL GitHub avec token si disponible (pour dépôts privés)
+  let githubUrl;
+  if (githubToken) {
+    githubUrl = `https://${githubToken}@github.com/${githubRepo}.git`;
+    console.log('[INSTALL-WORKSPACES] Utilisation d\'un token GitHub pour cloner (dépôt privé)');
+  } else {
+    githubUrl = `https://github.com/${githubRepo}.git`;
   }
   
-  // Installer React avec --no-workspaces pour forcer l'installation locale
-  // Mais d'abord, sauvegarder le package.json pour éviter que npm workspaces ne l'ignore
+  console.log(`[INSTALL-WORKSPACES] Clonage de ${githubRepo} dans shared/...`);
+  
+  try {
+    execSync(`git clone --depth 1 ${githubUrl} ${sharedTargetDir}`, { stdio: 'inherit' });
+    console.log('[INSTALL-WORKSPACES] kidoo-shared cloné avec succès dans shared/');
+    sharedPath = sharedTargetDir;
+    needPackageJsonUpdate = true;
+  } catch (error) {
+    console.error('[INSTALL-WORKSPACES] ERREUR lors du clonage:', error.message);
+    console.error('[INSTALL-WORKSPACES] Vérifiez que:');
+    console.error('[INSTALL-WORKSPACES] 1. Le dépôt existe et est accessible');
+    console.error('[INSTALL-WORKSPACES] 2. Si privé, GITHUB_TOKEN est défini sur Vercel');
+    console.error('[INSTALL-WORKSPACES] 3. Le format de KIDOO_SHARED_REPO est correct (username/repo)');
+    process.exit(1);
+  }
+}
+
+// ÉTAPE 2: Mettre à jour package.json et tsconfig.json si nécessaire
+if (needPackageJsonUpdate) {
+  // Mettre à jour package.json
   const packageJsonPath = path.join(currentDir, 'package.json');
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   
-  // S'assurer que React est bien dans les dépendances
-  if (!packageJson.dependencies.react) {
-    packageJson.dependencies.react = '19.1.0';
+  if (packageJson.dependencies['@kidoo/shared'] && packageJson.dependencies['@kidoo/shared'].startsWith('file:../')) {
+    packageJson.dependencies['@kidoo/shared'] = 'file:./shared';
+    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+    console.log('[INSTALL-WORKSPACES] package.json mis à jour pour pointer vers shared/');
   }
-  if (!packageJson.dependencies['react-dom']) {
-    packageJson.dependencies['react-dom'] = '19.1.0';
-  }
-  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
   
-  // Installer avec --legacy-peer-deps
-  execSync('npm install react@19.1.0 react-dom@19.1.0 --legacy-peer-deps --save-exact', { stdio: 'inherit' });
-  console.log('[INSTALL-WORKSPACES] React installé directement dans kidoo-server');
-  
-  // Vérification finale avec logs détaillés
-  console.log(`[INSTALL-WORKSPACES] Vérification finale - React local: ${fs.existsSync(reactLocalPath)}`);
-  console.log(`[INSTALL-WORKSPACES] Vérification finale - React-dom local: ${fs.existsSync(reactDomLocalPath)}`);
-  
-  // Si React n'est toujours pas disponible localement après toutes les tentatives,
-  // créer des liens symboliques depuis la racine vers kidoo-server
-  if (!fs.existsSync(reactLocalPath) && fs.existsSync(reactRootPath)) {
-    console.log('[INSTALL-WORKSPACES] Création d\'un lien symbolique depuis la racine...');
-    try {
-      const relativePath = path.relative(nodeModulesDir, reactRootPath);
-      fs.symlinkSync(relativePath, reactLocalPath, 'dir');
-      console.log('[INSTALL-WORKSPACES] Lien symbolique créé pour React');
-    } catch (err) {
-      console.log(`[INSTALL-WORKSPACES] Erreur lors de la création du lien: ${err.message}`);
+  // Mettre à jour tsconfig.json pour que @/shared pointe vers shared/
+  const tsconfigPath = path.join(currentDir, 'tsconfig.json');
+  if (fs.existsSync(tsconfigPath)) {
+    const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8'));
+    if (tsconfig.compilerOptions && tsconfig.compilerOptions.paths) {
+      if (tsconfig.compilerOptions.paths['@/shared']) {
+        tsconfig.compilerOptions.paths['@/shared'] = ['./shared'];
+        console.log('[INSTALL-WORKSPACES] tsconfig.json mis à jour pour pointer vers shared/');
+      }
+      if (tsconfig.compilerOptions.paths['@/shared/*']) {
+        tsconfig.compilerOptions.paths['@/shared/*'] = ['./shared/*'];
+        console.log('[INSTALL-WORKSPACES] tsconfig.json paths mis à jour pour shared/*');
+      }
+      fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
     }
   }
-  
-  if (!fs.existsSync(reactDomLocalPath) && fs.existsSync(reactDomRootPath)) {
-    console.log('[INSTALL-WORKSPACES] Création d\'un lien symbolique pour react-dom depuis la racine...');
-    try {
-      const relativePath = path.relative(nodeModulesDir, reactDomRootPath);
-      fs.symlinkSync(relativePath, reactDomLocalPath, 'dir');
-      console.log('[INSTALL-WORKSPACES] Lien symbolique créé pour react-dom');
-    } catch (err) {
-      console.log(`[INSTALL-WORKSPACES] Erreur lors de la création du lien: ${err.message}`);
-    }
-  }
-  
-  if (fs.existsSync(reactLocalPath)) {
-    const reactPackageJson = path.join(reactLocalPath, 'package.json');
-    if (fs.existsSync(reactPackageJson)) {
-      const reactPkg = JSON.parse(fs.readFileSync(reactPackageJson, 'utf8'));
-      console.log(`[INSTALL-WORKSPACES] Version de React trouvée: ${reactPkg.version}`);
-    }
-  }
-  
-  // Vérification finale absolue
-  const finalReactCheck = fs.existsSync(reactLocalPath);
-  const finalReactDomCheck = fs.existsSync(reactDomLocalPath);
-  
-  console.log(`[INSTALL-WORKSPACES] Vérification ABSOLUE - React: ${finalReactCheck} (${reactLocalPath})`);
-  console.log(`[INSTALL-WORKSPACES] Vérification ABSOLUE - React-dom: ${finalReactDomCheck} (${reactDomLocalPath})`);
-  
-  if (!finalReactCheck || !finalReactDomCheck) {
-    console.error('[INSTALL-WORKSPACES] ERREUR CRITIQUE: React n\'est toujours pas disponible après toutes les tentatives!');
-    console.error(`[INSTALL-WORKSPACES] React path: ${reactLocalPath}`);
-    console.error(`[INSTALL-WORKSPACES] React-dom path: ${reactDomLocalPath}`);
-    console.error(`[INSTALL-WORKSPACES] React à la racine: ${fs.existsSync(reactRootPath)}`);
-    console.error(`[INSTALL-WORKSPACES] React-dom à la racine: ${fs.existsSync(reactDomRootPath)}`);
-    process.exit(1);
-  }
-} else {
-  console.log('[INSTALL-WORKSPACES] Installation locale dans kidoo-server...');
-  process.chdir(currentDir);
-  console.log(`[INSTALL-WORKSPACES] CWD après chdir: ${process.cwd()}`);
-  execSync('npm install --legacy-peer-deps', { stdio: 'inherit' });
-  console.log('[INSTALL-WORKSPACES] Installation terminée localement');
 }
+
+// ÉTAPE 3: Installer les dépendances
+console.log('[INSTALL-WORKSPACES] Installation des dépendances...');
+process.chdir(currentDir);
+console.log(`[INSTALL-WORKSPACES] CWD: ${process.cwd()}`);
+
+try {
+  execSync('npm install --legacy-peer-deps', { stdio: 'inherit' });
+  console.log('[INSTALL-WORKSPACES] Installation terminée avec succès');
+} catch (error) {
+  console.error('[INSTALL-WORKSPACES] ERREUR lors de l\'installation:', error.message);
+  process.exit(1);
+}
+
 console.log('[INSTALL-WORKSPACES] ==========================================');

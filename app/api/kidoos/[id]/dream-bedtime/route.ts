@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
-import { updateDreamBedtimeConfigSchema, hexToRgb, saturateRgbToMax } from '@kidoo/shared';
+import { updateDreamBedtimeConfigSchema, hexToRgb, saturateRgbToMax } from '@/shared';
 
 /**
  * POST /api/kidoos/[id]/dream-bedtime
@@ -299,8 +299,9 @@ export const PATCH = withAuth(async (
       });
 
       // Créer les nouveaux schedules
+      const scheduleEntries = Object.entries(weekdaySchedule) as [string, { hour: number; minute: number; activated: boolean }][];
       await prisma.kidooConfigDreamBedtimeSchedule.createMany({
-        data: Object.entries(weekdaySchedule).map(([weekday, time]) => ({
+        data: scheduleEntries.map(([weekday, time]) => ({
           kidooConfigDreamId: config.id,
           weekday,
           hour: time.hour,

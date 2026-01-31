@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
-import { hexToRgb, saturateRgbToMax } from '@kidoo/shared';
+import { hexToRgb, saturateRgbToMax } from '@/shared';
 
 /**
  * POST /api/kidoos/[id]/dream-wakeup-test

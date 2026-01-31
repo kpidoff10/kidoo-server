@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
-import { registerSchema, type RegisterInput } from '@kidoo/shared';
+import { registerSchema, type RegisterInput } from '@/shared';
 
 export type RegisterResult = 
   | { success: true; userId: string; message: string }

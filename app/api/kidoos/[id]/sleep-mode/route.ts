@@ -7,7 +7,7 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sleepModeConfigSchema } from '@kidoo/shared';
+import { sleepModeConfigSchema } from '@/shared';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
 
 /**
