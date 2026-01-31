@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 // Import depuis shared/ (fonctionne avec Webpack, utilise @/lib/shared avec Turbopack)
-import { registerSchema, emailSchema } from '@/shared';
+import { registerSchema, emailSchema } from '@kidoo/shared';
 
 /**
  * POST /api/auth/register

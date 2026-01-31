@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
-import { updateDreamBedtimeConfigSchema, hexToRgb, saturateRgbToMax } from '@/shared';
+import { updateDreamBedtimeConfigSchema, hexToRgb, saturateRgbToMax } from '@kidoo/shared';
 
 /**
  * POST /api/kidoos/[id]/dream-bedtime

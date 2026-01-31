@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
 import { sendCommand, isPubNubConfigured, waitForMessage } from '@/lib/pubnub';
-import { Kidoo, KidooConfigBasic } from '@/shared/prisma';
+import { Kidoo, KidooConfigBasic } from '@kidoo/shared/prisma';
 
 // Timeout pour attendre la réponse de l'ESP32 (en ms)
 const RESPONSE_TIMEOUT_MS = 5000;

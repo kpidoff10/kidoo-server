@@ -8,7 +8,7 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
-import { updateKidooNameSchema } from '@/shared';
+import { updateKidooNameSchema } from '@kidoo/shared';
 import { KidooErrors } from '../errors';
 
 /**

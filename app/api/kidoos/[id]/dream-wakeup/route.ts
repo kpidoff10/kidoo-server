@@ -7,7 +7,7 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { updateDreamWakeupConfigSchema, hexToRgb, saturateRgbToMax } from '@/shared';
+import { updateDreamWakeupConfigSchema, hexToRgb, saturateRgbToMax } from '@kidoo/shared';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
 
 /**
