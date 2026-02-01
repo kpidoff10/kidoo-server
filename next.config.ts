@@ -2,15 +2,22 @@ import type { NextConfig } from "next";
 import path from "path";
 import fs from "fs";
 
-// Dossier shared : monorepo local (../kidoo-shared) ou Vercel (./shared après prepare-build)
+// Dossier shared : priorité node_modules (après npm install) > monorepo > Vercel shared/
+const sharedPackageInNodeModules = path.resolve(__dirname, 'node_modules/@kidoo/shared');
 const sharedSourceDir = path.resolve(__dirname, '../kidoo-shared');
 const sharedTargetDir = path.resolve(__dirname, 'shared');
-const sharedDir = fs.existsSync(sharedSourceDir) ? sharedSourceDir : sharedTargetDir;
-// Résolution via node_modules (dans le projet) pour que Turbopack accepte le module
-const sharedPackageInNodeModules = path.resolve(__dirname, 'node_modules/@kidoo/shared');
-const sharedResolveDir = fs.existsSync(path.join(sharedPackageInNodeModules, 'index.ts'))
-  ? sharedPackageInNodeModules
-  : sharedDir;
+
+function resolveSharedDir(): string {
+  if (fs.existsSync(sharedPackageInNodeModules)) {
+    return sharedPackageInNodeModules;
+  }
+  if (fs.existsSync(sharedSourceDir)) {
+    return sharedSourceDir;
+  }
+  return sharedTargetDir;
+}
+const sharedDir = resolveSharedDir();
+const sharedResolveDir = sharedDir;
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -24,6 +31,8 @@ const nextConfig: NextConfig = {
       // Turbopack ne résout pas un dossier vers package.json "main" → pointer vers index.ts
       '@kidoo/shared': path.join(sharedResolveDir, 'index.ts'),
       '@kidoo/shared/*': path.join(sharedResolveDir, '*'),
+      // Alias explicite pour Prisma (évite "windows imports" sur Windows)
+      '@kidoo/shared/prisma': path.join(sharedResolveDir, 'prisma', 'index.js').replace(/\\/g, '/'),
       '@/shared': path.join(sharedResolveDir, 'index.ts'),
       '@/shared/*': path.join(sharedResolveDir, '*'),
     },
@@ -39,9 +48,11 @@ const nextConfig: NextConfig = {
     const rootNodeModules = path.resolve(__dirname, '../../node_modules');
 
     config.resolve = config.resolve || {};
+    const sharedPrismaPath = path.join(sharedDir, 'prisma', 'index.js');
     config.resolve.alias = {
       ...config.resolve.alias,
       '@kidoo/shared': sharedDir,
+      '@kidoo/shared/prisma': sharedPrismaPath,
       '@kidoo/shared/*': path.join(sharedDir, '*'),
       '@/shared': sharedDir,
       '@/shared/*': path.join(sharedDir, '*'),

@@ -3,7 +3,7 @@
  * Utilise l'API S3 compatible de Cloudflare R2
  */
 
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Configuration R2 depuis les variables d'environnement
@@ -88,4 +88,73 @@ export async function getFileUrl(filePath: string, expiresIn: number = 3600): Pr
   });
 
   return await getSignedUrl(r2Client, command, { expiresIn });
+}
+
+/**
+ * Chemin R2 pour un firmware
+ */
+export function getFirmwarePath(model: string, version: string, fileName: string): string {
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return `firmware/${model}/${version}/${safeName}`;
+}
+
+/**
+ * URL publique d'un firmware (si R2_PUBLIC_URL configuré)
+ */
+export function getFirmwarePublicUrl(path: string): string {
+  if (r2PublicUrl) {
+    return `${r2PublicUrl.replace(/\/$/, '')}/${path}`;
+  }
+  throw new Error('R2_PUBLIC_URL requis pour les firmwares (téléchargements publics)');
+}
+
+export interface FirmwareUploadUrlResult {
+  uploadUrl: string;
+  path: string;
+  publicUrl: string;
+}
+
+/**
+ * Génère une URL signée pour upload PUT (firmware)
+ * Le client envoie le fichier directement vers R2
+ */
+export async function createFirmwareUploadUrl(
+  model: string,
+  version: string,
+  fileName: string,
+  fileSize: number,
+  expiresIn: number = 3600
+): Promise<FirmwareUploadUrlResult> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+
+  const path = getFirmwarePath(model, version, fileName);
+  const publicUrl = getFirmwarePublicUrl(path);
+
+  const command = new PutObjectCommand({
+    Bucket: MULTIMEDIA_BUCKET,
+    Key: path,
+    ContentLength: fileSize,
+    ContentType: 'application/octet-stream',
+  });
+
+  const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn });
+
+  return { uploadUrl, path, publicUrl };
+}
+
+/**
+ * Supprime un fichier du bucket R2
+ */
+export async function deleteFirmwareFile(path: string): Promise<void> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  await r2Client.send(
+    new DeleteObjectCommand({
+      Bucket: MULTIMEDIA_BUCKET,
+      Key: path,
+    })
+  );
 }

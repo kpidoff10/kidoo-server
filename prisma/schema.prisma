@@ -135,6 +135,22 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+// Firmware par modèle Kidoo (Basic, Dream, etc.)
+model Firmware {
+  id        String   @id @default(uuid())
+  model     String   // Modèle cible (basic, dream, etc.) - doit matcher KIDOO_MODELS
+  version   String   // Version (ex: 1.0.0)
+  url       String   // URL publique du binaire (R2/S3)
+  path      String   // Chemin dans le bucket
+  fileName  String   // Nom du fichier
+  fileSize  Int      // Taille en octets
+  createdAt DateTime @default(now())
+
+  @@unique([model, version])
+  @@index([model])
+  @@map("firmwares")
+}
+
 model File {
   id          String   @id @default(uuid())
   tagId       String   // ID du tag associé
