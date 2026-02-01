@@ -24,6 +24,7 @@ model User {
   name          String?
   avatar        String?
   password      String? // Pour l'authentification par mot de passe
+  isAdmin       Boolean   @default(false) // Accès admin (ex: upload firmware)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

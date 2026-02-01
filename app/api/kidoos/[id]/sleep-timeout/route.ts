@@ -10,7 +10,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
 import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
 import { sleepTimeoutCommandSchema, SLEEP_TIMEOUT_LIMITS } from '@/shared';
-import { Kidoo } from '@/shared/prisma';
+import { Kidoo } from '@kidoo/shared/prisma';
 
 /**
  * PATCH /api/kidoos/[id]/commands/common/sleep-timeout

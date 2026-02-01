@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
+    "dev:webpack": "next dev --hostname 0.0.0.0 --webpack",
     "prebuild": "node scripts/prepare-build.js",
     "build": "next build --webpack",
     "start": "next start",
@@ -32,7 +33,13 @@
     "pg": "^8.16.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "zod": "^4.3.6"
+    "react-hook-form": "^7.57.0",
+    "@hookform/resolvers": "^3.9.1",
+    "zod": "^4.3.6",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0",
+    "class-variance-authority": "^0.7.1",
+    "@radix-ui/react-slot": "^1.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -50,6 +57,7 @@
     "typescript": "^5"
   },
   "overrides": {
-    "fast-xml-parser": "^5.3.4"
+    "fast-xml-parser": "^5.3.4",
+    "zod": "^4.3.6"
   }
 }

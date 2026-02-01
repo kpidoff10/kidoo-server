@@ -40,6 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name || undefined,
           image: user.avatar || undefined,
+          isAdmin: user.isAdmin,
         };
       },
     }),
@@ -57,6 +58,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        token.isAdmin = user.isAdmin;
       }
       return token;
     },
@@ -64,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

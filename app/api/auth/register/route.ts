@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-// Import depuis shared/ (fonctionne avec Webpack, utilise @/lib/shared avec Turbopack)
+import { generateTokens } from '@/lib/jwt';
 import { registerSchema, emailSchema } from '@/shared';
 
 /**
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       data: {
         email,
         password: hashedPassword,
-        name,
+        name: name ?? null,
       },
       select: {
         id: true,
@@ -64,6 +64,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Générer les tokens JWT (même format que mobile/login pour connexion automatique)
+    const tokens = generateTokens({
+      userId: user.id,
+      email: user.email,
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -71,8 +77,10 @@ export async function POST(request: NextRequest) {
         user: {
           id: user.id,
           email: user.email,
-          name: user.name,
+          name: user.name ?? '',
         },
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
       { status: 201 }
     );
