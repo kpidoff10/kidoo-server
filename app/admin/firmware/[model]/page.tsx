@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getKidooModel, isKidooModelId } from '@kidoo/shared';
 import { useFirmwares, useDeleteFirmware, useCreateFirmware } from '../../hooks/useFirmwares';
 import { useFileUpload } from '../../contexts';
+import { ChangelogEditor, FirmwareChangelogDisplay } from '../components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -107,17 +108,18 @@ function FirmwareList({ modelId, modelLabel }: { modelId: KidooModelId; modelLab
         <div
           key={fw.id}
           className={cn(
-            'flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3',
+            'flex flex-col rounded-lg border border-border bg-card px-4 py-3',
             fw.id.startsWith('temp-') && 'opacity-70'
           )}
         >
-          <div>
-            <p className="font-medium text-foreground">v{fw.version}</p>
-            <p className="text-sm text-muted-foreground">
-              {fw.fileName} · {formatBytes(fw.fileSize)} · {formatDate(fw.createdAt)}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-foreground">v{fw.version}</p>
+              <p className="text-sm text-muted-foreground">
+                {fw.fileName} · {formatBytes(fw.fileSize)} · {formatDate(fw.createdAt)}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -137,6 +139,8 @@ function FirmwareList({ modelId, modelLabel }: { modelId: KidooModelId; modelLab
               Supprimer
             </Button>
           </div>
+          </div>
+          <FirmwareChangelogDisplay changelog={fw.changelog} version={fw.version} />
         </div>
       ))}
     </div>
@@ -148,6 +152,7 @@ function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
   const [isOpen, setIsOpen] = useState(false);
   const [version, setVersion] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [changelog, setChangelog] = useState('');
   const createMutation = useCreateFirmware(modelId);
   const { uploadFirmware, isUploading, progress, error: uploadError, reset } = useFileUpload();
 
@@ -165,11 +170,13 @@ function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
           path: result.path,
           fileName: result.fileName,
           fileSize: result.fileSize,
+          changelog: changelog.trim() || undefined,
         },
         {
           onSuccess: () => {
             setVersion('');
             setFile(null);
+            setChangelog('');
             reset();
             setIsOpen(false);
           },
@@ -227,6 +234,13 @@ function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
                 </p>
               )}
             </div>
+            <ChangelogEditor
+              value={changelog}
+              onChange={setChangelog}
+              label="Changelog (Markdown)"
+              placeholder={'## Nouveautés\n- Correction…\n- Amélioration…'}
+              minRows={5}
+            />
           </div>
 
           {isUploading && (

@@ -1,19 +1,2 @@
--- CreateTable
-CREATE TABLE "firmwares" (
-    "id" TEXT NOT NULL,
-    "model" TEXT NOT NULL,
-    "version" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "path" TEXT NOT NULL,
-    "fileName" TEXT NOT NULL,
-    "fileSize" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "firmwares_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "firmwares_model_version_key" ON "firmwares"("model", "version");
-
--- CreateIndex
-CREATE INDEX "firmwares_model_idx" ON "firmwares"("model");
+-- No-op: la table firmwares est créée dans la migration 20260201220817_add_firmware.
+-- Cette migration est conservée pour l'historique (éviter doublon sur shadow DB).

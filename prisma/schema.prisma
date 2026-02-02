@@ -144,6 +144,7 @@ model Firmware {
   path      String   // Chemin dans le bucket
   fileName  String   // Nom du fichier
   fileSize  Int      // Taille en octets
+  changelog String?  // Changelog en Markdown
   createdAt DateTime @default(now())
 
   @@unique([model, version])

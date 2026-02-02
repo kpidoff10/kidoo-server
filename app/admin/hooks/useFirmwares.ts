@@ -55,6 +55,7 @@ export function useCreateFirmware(model: KidooModelId) {
           path: newFirmware.path,
           fileName: newFirmware.fileName,
           fileSize: newFirmware.fileSize,
+          changelog: newFirmware.changelog ?? null,
           createdAt: new Date().toISOString(),
         };
         return old ? [optimistic, ...old] : [optimistic];

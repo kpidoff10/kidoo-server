@@ -4,7 +4,7 @@
  * Page de connexion admin – NextAuth + modules (Header, Form, Card) + thème shadcn
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts';
 import { AdminLoginCard } from './components';
@@ -12,12 +12,19 @@ import type { LoginInput } from '@kidoo/shared';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { signIn, isAuthenticated, isAdmin } = useAuth();
+  const { signIn, isAuthenticated, isAdmin, isLoading } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (isAuthenticated && isAdmin) {
-    router.replace('/admin');
+  useEffect(() => {
+    if (isLoading) return;
+    if (isAuthenticated && isAdmin) {
+      const t = setTimeout(() => router.replace('/admin'), 0);
+      return () => clearTimeout(t);
+    }
+  }, [isLoading, isAuthenticated, isAdmin, router]);
+
+  if (isLoading || (isAuthenticated && isAdmin)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div

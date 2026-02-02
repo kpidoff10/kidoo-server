@@ -13,6 +13,7 @@ export interface Firmware {
   path: string;
   fileName: string;
   fileSize: number;
+  changelog: string | null;
   createdAt: string;
 }
 

@@ -59,7 +59,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       });
     }
 
-    const { model, version, url, path, fileName, fileSize } = validation.data;
+    const { model, version, url, path, fileName, fileSize, changelog } = validation.data;
 
     const existing = await prisma.firmware.findUnique({
       where: { model_version: { model, version } },
@@ -70,7 +70,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     }
 
     const firmware = await prisma.firmware.create({
-      data: { model, version, url, path, fileName, fileSize },
+      data: { model, version, url, path, fileName, fileSize, changelog: changelog ?? null },
     });
 
     return createSuccessResponse(
