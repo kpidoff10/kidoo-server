@@ -125,7 +125,11 @@ function FirmwareList({ modelId, modelLabel }: { modelId: KidooModelId; modelLab
               size="sm"
               asChild
             >
-              <a href={fw.url} target="_blank" rel="noopener noreferrer">
+              <a
+                href={`/api/firmware/download-redirect?model=${encodeURIComponent(modelId)}&version=${encodeURIComponent(fw.version)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Télécharger
               </a>
             </Button>

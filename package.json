@@ -9,13 +9,13 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "db:generate": "prisma generate",
+    "db:generate": "prisma generate && node scripts/generate-kidoo-model-ids.js",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate && node scripts/generate-kidoo-model-ids.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

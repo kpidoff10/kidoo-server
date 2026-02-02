@@ -304,6 +304,70 @@ export async function waitForMessage(
   return null; // Timeout
 }
 
+/**
+ * Attend la réponse OTA de l'ESP (firmware-update-done ou firmware-update-failed) pour une version donnée.
+ * Même principe que waitForMessage (get-info) : envoi commande puis attente de la réponse via History.
+ * @param macAddress MAC du Kidoo
+ * @param version Version cible (pour filtrer les messages)
+ * @param timeoutMs Timeout en ms (ex: 5 min). Au-delà, retourne null.
+ * @param pollIntervalMs Intervalle de poll (ex: 1500 ms)
+ * @returns { status: 'done', version } | { status: 'failed', error } | null (timeout)
+ */
+export async function waitForFirmwareUpdateResult(
+  macAddress: string,
+  version: string,
+  timeoutMs: number = 5 * 60 * 1000,
+  pollIntervalMs: number = 1500
+): Promise<{ status: 'done'; version: string } | { status: 'failed'; error: string } | null> {
+  const startTime = Date.now();
+  const channel = getKidooChannel(macAddress);
+
+  const initialHistory = await fetchHistory(channel, 1);
+  let afterTimetoken: string | undefined;
+
+  if (initialHistory && initialHistory.length > 0) {
+    afterTimetoken = initialHistory[0].timetoken;
+    console.log(`[PUBNUB] Firmware-update: timetoken de départ: ${afterTimetoken}`);
+  }
+
+  while (Date.now() - startTime < timeoutMs) {
+    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+    const messages = await fetchHistory(channel, 20, afterTimetoken);
+
+    if (messages && messages.length > 0) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const item = messages[i];
+        const msg = item.message;
+        if (!msg || typeof msg !== 'object') continue;
+        const msgType = msg.type as string | undefined;
+        const msgVersion = (msg.version as string) ?? '';
+        const firmwareVersion = (msg.firmwareVersion as string) ?? '';
+
+        if (msgType === 'firmware-update-done' && msgVersion === version) {
+          console.log(`[PUBNUB] firmware-update-done reçu (version: ${msgVersion})`);
+          return { status: 'done', version: msgVersion };
+        }
+        if (msgType === 'firmware-update-failed' && msgVersion === version) {
+          const error = (msg.error as string) ?? 'Erreur inconnue';
+          console.log(`[PUBNUB] firmware-update-failed reçu: ${error}`);
+          return { status: 'failed', error };
+        }
+        // Fallback: après redémarrage, un get-info renvoie type "info" avec firmwareVersion
+        if (msgType === 'info' && firmwareVersion === version) {
+          console.log(`[PUBNUB] firmware-update: fallback info avec firmwareVersion=${firmwareVersion}`);
+          return { status: 'done', version: firmwareVersion };
+        }
+      }
+      // Avancer le curseur vers le message le plus récent pour le prochain poll
+      afterTimetoken = messages[0].timetoken;
+    }
+  }
+
+  console.log(`[PUBNUB] Firmware-update: timeout après ${timeoutMs}ms`);
+  return null;
+}
+
 // Commandes disponibles
 export const Commands = {
   /**
@@ -325,6 +389,13 @@ export const Commands = {
    */
   reboot: (macAddress: string, delayMs?: number): Promise<boolean> => {
     return sendCommand(macAddress, 'reboot', delayMs ? { delay: delayMs } : undefined);
+  },
+
+  /**
+   * Lance une mise à jour firmware OTA vers une version cible
+   */
+  firmwareUpdate: (macAddress: string, version: string): Promise<boolean> => {
+    return sendCommand(macAddress, 'firmware-update', { version });
   },
 
   /**
