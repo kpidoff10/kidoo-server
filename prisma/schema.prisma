@@ -16,6 +16,12 @@ enum TagType {
   SOUND
 }
 
+// Modèles Kidoo (aligné avec KIDOO_MODELS dans kidoo-shared)
+enum KidooModel {
+  basic
+  dream
+}
+
 
 model User {
   id            String    @id @default(uuid())
@@ -38,9 +44,9 @@ model User {
 }
 
 model Kidoo {
-  id                String   @id @default(uuid())
+  id                String     @id @default(uuid())
   name              String
-  model             String   @default("classic") // Modèle du Kidoo (classic, mini, pro, etc.)
+  model             KidooModel @default(basic) // Modèle du Kidoo (basic, dream)
   macAddress        String?  // Adresse MAC WiFi (renvoyée par l'ESP32 lors du setup)
   bluetoothMacAddress String? // Adresse MAC Bluetooth (pour comparer lors des scans automatiques)
   deviceId          String   @unique // UUID du device BLE
@@ -137,8 +143,8 @@ model VerificationToken {
 
 // Firmware par modèle Kidoo (Basic, Dream, etc.)
 model Firmware {
-  id        String   @id @default(uuid())
-  model     String   // Modèle cible (basic, dream, etc.) - doit matcher KIDOO_MODELS
+  id        String     @id @default(uuid())
+  model     KidooModel // Modèle cible (basic, dream)
   version   String   // Version (ex: 1.0.0)
   url       String   // URL publique du binaire (R2/S3)
   path      String   // Chemin dans le bucket

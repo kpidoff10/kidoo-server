@@ -190,7 +190,7 @@ async function updateKidooInfo(
     }
 
     // Pour le modèle Basic, mettre à jour la config storage
-    if (model.toLowerCase() === 'basic') {
+    if (model === 'basic') {
       const storage = info.storage as { total?: number; free?: number; used?: number } | undefined;
       
       await prisma.kidooConfigBasic.upsert({

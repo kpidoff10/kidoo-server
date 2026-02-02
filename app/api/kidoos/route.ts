@@ -96,7 +96,7 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
     const newKidoo = await prisma.kidoo.create({
       data: {
         name,
-        model: model || 'classic', // Utiliser le modèle fourni ou 'classic' par défaut
+        model: model ?? 'basic',
         deviceId,
         macAddress: macAddress || null, // Adresse MAC WiFi (renvoyée par l'ESP32 lors du setup)
         bluetoothMacAddress: bluetoothMacAddress || null, // Adresse MAC Bluetooth (pour comparer lors des scans automatiques)
