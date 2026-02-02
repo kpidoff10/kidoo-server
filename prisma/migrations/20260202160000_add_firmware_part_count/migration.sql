@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "firmwares" ADD COLUMN IF NOT EXISTS "partCount" INTEGER NOT NULL DEFAULT 1;

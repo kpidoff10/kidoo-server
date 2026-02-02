@@ -177,10 +177,13 @@ async function updateKidooInfo(
   info: Record<string, unknown>
 ) {
   try {
-    // Mettre à jour brightness et sleepTimeout sur le Kidoo (commun à tous les modèles)
-    const kidooUpdate: { brightness?: number; sleepTimeout?: number } = {};
+    // Mettre à jour brightness, sleepTimeout et firmwareVersion sur le Kidoo (commun à tous les modèles)
+    const kidooUpdate: { brightness?: number; sleepTimeout?: number; firmwareVersion?: string | null } = {};
     if (typeof info.brightness === 'number') kidooUpdate.brightness = info.brightness;
     if (typeof info.sleepTimeout === 'number') kidooUpdate.sleepTimeout = info.sleepTimeout;
+    if (typeof info.firmwareVersion === 'string' && info.firmwareVersion.trim()) {
+      kidooUpdate.firmwareVersion = info.firmwareVersion.trim();
+    }
 
     if (Object.keys(kidooUpdate).length > 0) {
       await prisma.kidoo.update({

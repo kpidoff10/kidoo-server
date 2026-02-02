@@ -142,14 +142,16 @@ model VerificationToken {
 }
 
 // Firmware par modèle Kidoo (Basic, Dream, etc.)
+// partCount > 1 : firmware en parts (firmware/{model}/{version}/part0.bin, part1.bin, ...)
 model Firmware {
   id        String     @id @default(uuid())
   model     KidooModel // Modèle cible (basic, dream)
   version   String   // Version (ex: 1.0.0)
-  url       String   // URL publique du binaire (R2/S3)
-  path      String   // Chemin dans le bucket
-  fileName  String   // Nom du fichier
-  fileSize  Int      // Taille en octets
+  url       String   // URL publique du binaire (R2/S3) ou première part
+  path      String   // Chemin dans le bucket (part0 ou fichier unique)
+  fileName  String   // Nom du fichier (part0.bin ou firmware.bin)
+  fileSize  Int      // Taille totale en octets
+  partCount Int      @default(1) // Nombre de parts (1 = fichier unique)
   changelog String?  // Changelog en Markdown
   createdAt DateTime @default(now())
 

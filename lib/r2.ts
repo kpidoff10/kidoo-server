@@ -99,6 +99,63 @@ export function getFirmwarePath(model: string, version: string, fileName: string
 }
 
 /**
+ * Chemin R2 pour une part de firmware (règle fixe: firmware/{model}/{version}/part{index}.bin)
+ */
+export function getFirmwarePartPath(model: string, version: string, partIndex: number): string {
+  return getFirmwarePath(model, version, `part${partIndex}.bin`);
+}
+
+/**
+ * Génère une URL signée (presigned) pour télécharger un firmware.
+ * À utiliser pour l’API download : fonctionne même si le bucket R2 n’est pas en accès public
+ * (évite l’erreur Authorization / InvalidArgument de R2).
+ */
+export async function getFirmwareDownloadUrl(path: string, expiresIn: number = 3600): Promise<string> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  const command = new GetObjectCommand({
+    Bucket: MULTIMEDIA_BUCKET,
+    Key: path,
+  });
+  return await getSignedUrl(r2Client, command, { expiresIn });
+}
+
+/**
+ * URL directe R2 pour téléchargement firmware par l'ESP (sans passer par le serveur).
+ * - Si R2_PUBLIC_URL : URL courte (domaine + path).
+ * - Sinon : URL presignée (valide 1 h).
+ * Retourne null si R2 n'est pas configuré.
+ */
+export async function getFirmwareDirectDownloadUrl(path: string, expiresIn: number = 3600): Promise<string | null> {
+  if (!r2Client) return null;
+  if (r2PublicUrl) {
+    return `${r2PublicUrl.replace(/\/$/, '')}/${path}`;
+  }
+  return await getFirmwareDownloadUrl(path, expiresIn);
+}
+
+/**
+ * Récupère le stream du binaire firmware depuis R2 (pour diffusion via /api/firmware/serve).
+ * URL courte pour l’ESP32 (évite les limites de longueur d’URL sur les presigned R2).
+ */
+export async function getFirmwareStream(path: string): Promise<{
+  Body: import('@aws-sdk/client-s3').GetObjectCommandOutput['Body'];
+  ContentLength?: number;
+}> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  const response = await r2Client.send(
+    new GetObjectCommand({
+      Bucket: MULTIMEDIA_BUCKET,
+      Key: path,
+    })
+  );
+  return { Body: response.Body!, ContentLength: response.ContentLength };
+}
+
+/**
  * URL publique d'un firmware (si R2_PUBLIC_URL configuré)
  */
 export function getFirmwarePublicUrl(path: string): string {
@@ -142,6 +199,30 @@ export async function createFirmwareUploadUrl(
   const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn });
 
   return { uploadUrl, path, publicUrl };
+}
+
+/**
+ * Upload une part de firmware vers R2 (buffer en mémoire, utilisé par upload-zip).
+ */
+export async function uploadFirmwarePart(
+  model: string,
+  version: string,
+  partIndex: number,
+  body: Buffer
+): Promise<string> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  const path = getFirmwarePartPath(model, version, partIndex);
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: MULTIMEDIA_BUCKET,
+      Key: path,
+      Body: body,
+      ContentType: 'application/octet-stream',
+    })
+  );
+  return path;
 }
 
 /**

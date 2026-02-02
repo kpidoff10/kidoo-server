@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { withAdminAuth, AdminAuthenticatedRequest } from '@/lib/withAdminAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { FirmwareErrors } from '../errors';
-import { deleteFirmwareFile } from '@/lib/r2';
+import { deleteFirmwareFile, getFirmwarePartPath } from '@/lib/r2';
 
 export const DELETE = withAdminAuth(
   async (request: AdminAuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -24,9 +24,16 @@ export const DELETE = withAdminAuth(
       }
 
       try {
-        await deleteFirmwareFile(firmware.path);
+        if (firmware.partCount > 1) {
+          for (let i = 0; i < firmware.partCount; i++) {
+            const path = getFirmwarePartPath(firmware.model, firmware.version, i);
+            await deleteFirmwareFile(path);
+          }
+        } else {
+          await deleteFirmwareFile(firmware.path);
+        }
       } catch (err) {
-        console.warn('[Firmware] Erreur suppression fichier R2:', err);
+        console.warn('[Firmware] Erreur suppression fichier(s) R2:', err);
       }
 
       await prisma.firmware.delete({
