@@ -13,6 +13,7 @@ export interface Firmware {
   path: string;
   fileName: string;
   fileSize: number;
+  partCount: number;
   changelog: string | null;
   createdAt: string;
 }
@@ -74,4 +75,37 @@ export const firmwareApi = {
     api<{ id: string }>(`/api/admin/firmware/${id}`, {
       method: 'DELETE',
     }),
+
+  /**
+   * Upload un .zip contenant part0.bin, part1.bin, ... (max 2 Mo par part).
+   * Le serveur décompresse et uploade chaque part vers R2, crée ou met à jour le firmware.
+   */
+  uploadZip: async (params: {
+    file: File;
+    model: string;
+    version: string;
+    changelog?: string;
+  }): Promise<{ success: true; data: Firmware } | { success: false; error: string; errorCode?: string }> => {
+    const formData = new FormData();
+    formData.append('file', params.file);
+    formData.append('model', params.model);
+    formData.append('version', params.version);
+    if (params.changelog) formData.append('changelog', params.changelog);
+
+    const res = await fetch('/api/admin/firmware/upload-zip', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      return {
+        success: false,
+        error: json.error ?? 'Erreur inconnue',
+        errorCode: json.errorCode,
+      };
+    }
+    return { success: true, data: json.data };
+  },
 };

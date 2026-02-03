@@ -1,8 +1,9 @@
 /**
  * GET /api/firmware/download?model=dream&version=1.0.1
- * Retourne l'URL du binaire pour l'ESP32 OTA.
- * Préfère l'URL R2 directe (publique ou presignée) pour que l'ESP télécharge depuis le stockage
- * sans passer par le serveur ; sinon fallback sur /api/firmware/serve.
+ * Retourne les URLs des binaires pour l'ESP32 OTA.
+ * - partCount === 1 : url vers /api/firmware/serve.
+ * - partCount > 1 : partCount + urls[] (une URL /api/firmware/serve par part).
+ * Les téléchargements passent systématiquement par /api/firmware/serve pour éviter les soucis TLS R2 côté ESP32.
  */
 
 import { NextRequest } from 'next/server';
@@ -11,7 +12,6 @@ import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { FirmwareErrors } from '@/app/api/admin/firmware/errors';
 import { isKidooModelId } from '@kidoo/shared';
 import type { KidooModel } from '@kidoo/shared/prisma';
-import { getFirmwareDirectDownloadUrl } from '@/lib/r2';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const model = searchParams.get('model');
     const version = searchParams.get('version');
     const mac = searchParams.get('mac') ?? undefined;
+    const v = version?.trim() ?? '';
 
     if (!model || !isKidooModelId(model)) {
       return createErrorResponse(FirmwareErrors.MODEL_INVALID, {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (!version || version.trim() === '') {
+    if (!v) {
       return createErrorResponse(FirmwareErrors.VALIDATION_ERROR, {
         message: 'Paramètre version requis',
       });
@@ -36,47 +37,68 @@ export async function GET(request: NextRequest) {
       where: {
         model_version: {
           model: model as KidooModel,
-          version: version.trim(),
+          version: v,
         },
       },
-      select: { version: true, path: true },
+      select: { version: true, path: true, partCount: true, fileSize: true },
     });
 
     if (!firmware) {
       return createErrorResponse(FirmwareErrors.NOT_FOUND, {
-        message: `Aucun firmware pour model=${model} version=${version}`,
+        message: `Aucun firmware pour model=${model} version=${v}`,
       });
     }
 
-    // URL serve (stream via le serveur) pour fallback si l'ESP échoue sur l'URL R2 directe (TLS/DNS).
     const requestOrigin = request.nextUrl.origin;
     const isUnreachable =
       requestOrigin.includes('0.0.0.0') ||
       requestOrigin.startsWith('http://localhost') ||
       requestOrigin.startsWith('http://127.0.0.1');
-    const origin =
-      isUnreachable && process.env.API_PUBLIC_ORIGIN
-        ? process.env.API_PUBLIC_ORIGIN.replace(/\/$/, '')
-        : requestOrigin;
-    const serveUrl =
-      `${origin}/api/firmware/serve?model=${encodeURIComponent(model)}&version=${encodeURIComponent(version.trim())}` +
-      (mac?.trim() ? `&mac=${encodeURIComponent(mac.trim().replace(/[:-]/g, '').toUpperCase())}` : '');
+    // L'ESP télécharge via /api/firmware/serve ; l'origine doit donc être joignable directement.
+    // En dev (Postman sur 0.0.0.0 ou localhost), définir API_PUBLIC_ORIGIN=http://<IP_LAN>:3000
+    // (ex. http://192.168.1.206:3000) dans .env pour que l'ESP dispose d'une URL accessible.
+    let origin = requestOrigin;
+    if (isUnreachable) {
+      if (process.env.API_PUBLIC_ORIGIN) {
+        origin = process.env.API_PUBLIC_ORIGIN.replace(/\/$/, '');
+      } else {
+        const host = request.headers.get('host') ?? '';
+        const hostUnreachable =
+          host.includes('0.0.0.0') || host.startsWith('localhost') || host.startsWith('127.0.0.1');
+        if (!hostUnreachable && host) {
+          const proto = request.headers.get('x-forwarded-proto') ?? 'http';
+          origin = `${proto}://${host}`;
+        }
+      }
+    }
+    const macQ = mac?.trim() ? `&mac=${encodeURIComponent(mac.trim().replace(/[:-]/g, '').toUpperCase())}` : '';
+    const buildServeUrl = (part?: number) => {
+      const partQuery = part != null ? `&part=${part}` : '';
+      return (
+        `${origin}/api/firmware/serve?model=${encodeURIComponent(model)}&version=${encodeURIComponent(v)}` +
+        partQuery +
+        macQ
+      );
+    };
 
-    // Préférer l'URL R2 directe : l'ESP télécharge depuis le stockage (pas de stream via le serveur, pas de timeout Vercel).
-    const directUrl = await getFirmwareDirectDownloadUrl(firmware.path, 3600);
-    const MAX_ESP_URL_LEN = 1024; // ESP binUrl buffer
-    let url: string;
-    let fallbackUrl: string | undefined;
-    if (directUrl != null && directUrl.length <= MAX_ESP_URL_LEN) {
-      url = directUrl;
-      fallbackUrl = serveUrl; // Retry possible si GET sur R2 échoue (ex. -1 TLS/DNS)
-    } else {
-      url = serveUrl;
+    const partCount = firmware.partCount ?? 1;
+
+    if (partCount > 1) {
+      const urls: string[] = Array.from({ length: partCount }, (_, i) => buildServeUrl(i));
+      return createSuccessResponse({
+        partCount,
+        urls,
+        totalSize: firmware.fileSize,
+        version: firmware.version,
+      });
     }
 
+    const url = buildServeUrl();
+
     return createSuccessResponse({
+      partCount: 1,
       url,
-      ...(fallbackUrl != null && { fallbackUrl }),
+      totalSize: firmware.fileSize,
       version: firmware.version,
     });
   } catch (error) {

@@ -99,6 +99,13 @@ export function getFirmwarePath(model: string, version: string, fileName: string
 }
 
 /**
+ * Chemin R2 pour une part de firmware (règle fixe: firmware/{model}/{version}/part{index}.bin)
+ */
+export function getFirmwarePartPath(model: string, version: string, partIndex: number): string {
+  return getFirmwarePath(model, version, `part${partIndex}.bin`);
+}
+
+/**
  * Génère une URL signée (presigned) pour télécharger un firmware.
  * À utiliser pour l’API download : fonctionne même si le bucket R2 n’est pas en accès public
  * (évite l’erreur Authorization / InvalidArgument de R2).
@@ -192,6 +199,30 @@ export async function createFirmwareUploadUrl(
   const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn });
 
   return { uploadUrl, path, publicUrl };
+}
+
+/**
+ * Upload une part de firmware vers R2 (buffer en mémoire, utilisé par upload-zip).
+ */
+export async function uploadFirmwarePart(
+  model: string,
+  version: string,
+  partIndex: number,
+  body: Buffer
+): Promise<string> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  const path = getFirmwarePartPath(model, version, partIndex);
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: MULTIMEDIA_BUCKET,
+      Key: path,
+      Body: body,
+      ContentType: 'application/octet-stream',
+    })
+  );
+  return path;
 }
 
 /**

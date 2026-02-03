@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { FirmwareErrors } from '@/app/api/admin/firmware/errors';
 import { isKidooModelId } from '@kidoo/shared';
+import type { KidooModel } from '@kidoo/shared/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const latest = await prisma.firmware.findFirst({
-      where: { model },
+      where: { model: model as KidooModel },
       orderBy: { createdAt: 'desc' },
       select: { version: true, changelog: true },
     });

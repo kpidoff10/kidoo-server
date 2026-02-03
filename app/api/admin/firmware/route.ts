@@ -9,6 +9,7 @@ import { withAdminAuth, AdminAuthenticatedRequest } from '@/lib/withAdminAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { FirmwareErrors } from './errors';
 import { isKidooModelId, createFirmwareSchema } from '@kidoo/shared';
+import type { KidooModel } from '@kidoo/shared/prisma';
 
 export const GET = withAdminAuth(async (request: AdminAuthenticatedRequest) => {
   try {
@@ -22,7 +23,7 @@ export const GET = withAdminAuth(async (request: AdminAuthenticatedRequest) => {
     }
 
     const firmwares = await prisma.firmware.findMany({
-      where: { model },
+      where: { model: model as KidooModel },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -62,7 +63,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     const { model, version, url, path, fileName, fileSize, changelog } = validation.data;
 
     const existing = await prisma.firmware.findUnique({
-      where: { model_version: { model, version } },
+      where: { model_version: { model: model as KidooModel, version } },
     });
 
     if (existing) {
@@ -70,7 +71,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     }
 
     const firmware = await prisma.firmware.create({
-      data: { model, version, url, path, fileName, fileSize, changelog: changelog ?? null },
+      data: { model: model as KidooModel, version, url, path, fileName, fileSize, changelog: changelog ?? null },
     });
 
     return createSuccessResponse(

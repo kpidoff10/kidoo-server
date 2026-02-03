@@ -52,7 +52,7 @@ export const POST = withAuth(async (
     }
 
     // Vérifier que c'est un modèle Dream
-    if (kidoo.model !== 'DREAM') {
+    if (kidoo.model !== 'dream') {
       return createErrorResponse('BAD_REQUEST', 400, {
         message: 'Cette fonctionnalité est uniquement disponible pour le modèle Dream',
       });
@@ -131,7 +131,7 @@ export const GET = withAuth(async (
     }
 
     // Vérifier que c'est un modèle Dream
-    if (kidoo.model !== 'DREAM') {
+    if (kidoo.model !== 'dream') {
       return createErrorResponse('BAD_REQUEST', 400, {
         message: 'Cette configuration est uniquement disponible pour le modèle Dream',
       });
@@ -150,12 +150,12 @@ export const GET = withAuth(async (
       });
     }
 
-    // Récupérer le schedule par jour depuis la table
+    // Récupérer le schedule par jour depuis la table (clés en minuscules pour cohérence avec l'ESP)
     let weekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
     if (kidoo.configDream.bedtimeSchedules && kidoo.configDream.bedtimeSchedules.length > 0) {
       weekdaySchedule = {};
       kidoo.configDream.bedtimeSchedules.forEach((schedule) => {
-        weekdaySchedule![schedule.weekday] = {
+        weekdaySchedule![schedule.weekday.toLowerCase()] = {
           hour: schedule.hour,
           minute: schedule.minute,
           activated: schedule.activated,
@@ -241,7 +241,7 @@ export const PATCH = withAuth(async (
     }
 
     // Vérifier que c'est un modèle Dream
-    if (kidoo.model !== 'DREAM') {
+    if (kidoo.model !== 'dream') {
       return createErrorResponse('BAD_REQUEST', 400, {
         message: 'Cette configuration est uniquement disponible pour le modèle Dream',
       });
@@ -298,12 +298,12 @@ export const PATCH = withAuth(async (
         where: { kidooConfigDreamId: config.id },
       });
 
-      // Créer les nouveaux schedules
+      // Créer les nouveaux schedules (weekday en minuscules pour cohérence avec l'ESP)
       const scheduleEntries = Object.entries(weekdaySchedule) as [string, { hour: number; minute: number; activated: boolean }][];
       await prisma.kidooConfigDreamBedtimeSchedule.createMany({
         data: scheduleEntries.map(([weekday, time]) => ({
           kidooConfigDreamId: config.id,
-          weekday,
+          weekday: weekday.toLowerCase(),
           hour: time.hour,
           minute: time.minute,
           activated: time.activated ?? true,
@@ -326,7 +326,7 @@ export const PATCH = withAuth(async (
     if (updatedSchedules.length > 0) {
       responseWeekdaySchedule = {};
       updatedSchedules.forEach((schedule) => {
-        responseWeekdaySchedule![schedule.weekday] = {
+        responseWeekdaySchedule![schedule.weekday.toLowerCase()] = {
           hour: schedule.hour,
           minute: schedule.minute,
           activated: schedule.activated,
@@ -351,23 +351,22 @@ export const PATCH = withAuth(async (
     // Envoyer la configuration à l'ESP32 via PubNub
     if (kidoo.macAddress && isPubNubConfigured()) {
       try {
-        // Construire les paramètres PubNub avec la configuration
+        // Construire les paramètres PubNub (toujours envoyer weekdaySchedule pour que l'ESP reçoive la config complète)
         const params: Record<string, unknown> = {
           colorR: updatedConfig.colorR ?? rgb.r,
           colorG: updatedConfig.colorG ?? rgb.g,
           colorB: updatedConfig.colorB ?? rgb.b,
           brightness: updatedConfig.brightness,
           allNight: updatedConfig.allNight,
+          weekdaySchedule: responseWeekdaySchedule && Object.keys(responseWeekdaySchedule).length > 0
+            ? Object.fromEntries(
+                Object.entries(responseWeekdaySchedule).map(([k, v]) => [k.toLowerCase(), v])
+              )
+            : {},
         };
 
-        // Ajouter l'effet si présent
         if (updatedConfig.effect) {
           params.effect = updatedConfig.effect;
-        }
-
-        // Ajouter weekdaySchedule si présent
-        if (responseWeekdaySchedule && Object.keys(responseWeekdaySchedule).length > 0) {
-          params.weekdaySchedule = responseWeekdaySchedule;
         }
 
         // Construire le message PubNub avec la configuration

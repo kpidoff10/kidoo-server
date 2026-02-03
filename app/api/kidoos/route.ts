@@ -4,9 +4,9 @@
  * POST /api/kidoos - Créer un nouveau kidoo
  */
 
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createKidooInputSchema } from '@/shared';
+import type { KidooModel } from '@kidoo/shared/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { KidoosErrors } from './errors';
@@ -96,7 +96,7 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
     const newKidoo = await prisma.kidoo.create({
       data: {
         name,
-        model: model ?? 'basic',
+        model: (model ?? 'basic') as KidooModel,
         deviceId,
         macAddress: macAddress || null, // Adresse MAC WiFi (renvoyée par l'ESP32 lors du setup)
         bluetoothMacAddress: bluetoothMacAddress || null, // Adresse MAC Bluetooth (pour comparer lors des scans automatiques)

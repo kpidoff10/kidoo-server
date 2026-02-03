@@ -6,12 +6,14 @@ import Link from 'next/link';
 import { getKidooModel, isKidooModelId } from '@kidoo/shared';
 import { useFirmwares, useDeleteFirmware, useCreateFirmware } from '../../hooks/useFirmwares';
 import { useFileUpload } from '../../contexts';
+import { firmwareApi } from '../../lib/firmwareApi';
 import { ChangelogEditor, FirmwareChangelogDisplay } from '../components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { KidooModelId } from '@kidoo/shared';
+import { useQueryClient } from '@tanstack/react-query';
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} o`;
@@ -116,7 +118,8 @@ function FirmwareList({ modelId, modelLabel }: { modelId: KidooModelId; modelLab
             <div>
               <p className="font-medium text-foreground">v{fw.version}</p>
               <p className="text-sm text-muted-foreground">
-                {fw.fileName} · {formatBytes(fw.fileSize)} · {formatDate(fw.createdAt)}
+                {fw.fileName}
+                {fw.partCount > 1 ? ` · ${fw.partCount} part(s)` : ''} · {formatBytes(fw.fileSize)} · {formatDate(fw.createdAt)}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -152,17 +155,52 @@ function FirmwareList({ modelId, modelLabel }: { modelId: KidooModelId; modelLab
   );
 }
 
+const FIRMWARE_KEYS = { byModel: (model: string) => ['admin', 'firmwares', model] as const };
+
 function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
   const [isOpen, setIsOpen] = useState(false);
   const [version, setVersion] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [changelog, setChangelog] = useState('');
+  const [zipError, setZipError] = useState<string | null>(null);
+  const [isZipUploading, setIsZipUploading] = useState(false);
   const createMutation = useCreateFirmware(modelId);
   const { uploadFirmware, isUploading, progress, error: uploadError, reset } = useFileUpload();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
+
+    const isZip = file.name.toLowerCase().endsWith('.zip');
+    setZipError(null);
+
+    if (isZip) {
+      setIsZipUploading(true);
+      try {
+        const res = await firmwareApi.uploadZip({
+          file,
+          model: modelId,
+          version,
+          changelog: changelog.trim() || undefined,
+        });
+        if (res.success) {
+          await queryClient.invalidateQueries({ queryKey: FIRMWARE_KEYS.byModel(modelId) });
+          setVersion('');
+          setFile(null);
+          setChangelog('');
+          reset();
+          setIsOpen(false);
+        } else {
+          setZipError(res.error);
+        }
+      } catch (err) {
+        setZipError(err instanceof Error ? err.message : 'Erreur inconnue');
+      } finally {
+        setIsZipUploading(false);
+      }
+      return;
+    }
 
     try {
       const result = await uploadFirmware(file, modelId, version);
@@ -191,7 +229,7 @@ function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
     }
   };
 
-  const isBusy = isUploading || createMutation.isPending;
+  const isBusy = isUploading || createMutation.isPending || isZipUploading;
 
   return (
     <div className="mt-6">
@@ -223,18 +261,23 @@ function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
               />
             </div>
             <div>
-              <Label htmlFor="file">Fichier firmware (.bin)</Label>
+              <Label htmlFor="file">Fichier firmware (.bin ou .zip avec parts)</Label>
               <Input
                 id="file"
                 type="file"
-                accept=".bin,application/octet-stream"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                accept=".bin,.zip,application/octet-stream,application/zip"
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] ?? null);
+                  setZipError(null);
+                }}
                 required
                 className="mt-1"
               />
               {file && (
                 <p className="mt-1 text-sm text-muted-foreground">
                   {file.name} · {formatBytes(file.size)}
+                  {file.name.toLowerCase().endsWith('.zip') &&
+                    ' (zip avec part0.bin, part1.bin, … max 2 Mo/part)'}
                 </p>
               )}
             </div>
@@ -247,23 +290,23 @@ function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
             />
           </div>
 
-          {isUploading && (
+          {(isUploading || isZipUploading) && (
             <div className="mt-4">
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${progress}%` }}
+                  style={{ width: isZipUploading ? 100 : progress }}
                 />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Envoi vers Cloudflare R2… {progress}%
+                {isZipUploading ? 'Décompression et envoi des parts vers R2…' : `Envoi vers Cloudflare R2… ${progress}%`}
               </p>
             </div>
           )}
 
-          {(uploadError || createMutation.isError) && (
+          {(uploadError || createMutation.isError || zipError) && (
             <p className="mt-2 text-sm text-destructive">
-              {uploadError ?? createMutation.error?.message}
+              {uploadError ?? createMutation.error?.message ?? zipError}
             </p>
           )}
 

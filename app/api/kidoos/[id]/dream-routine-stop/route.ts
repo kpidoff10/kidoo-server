@@ -38,7 +38,7 @@ export const POST = withAuth(async (
     }
 
     // Vérifier que c'est un modèle Dream
-    if (kidoo.model !== 'DREAM') {
+    if (kidoo.model !== 'dream') {
       return createErrorResponse('BAD_REQUEST', 400, {
         message: 'Cette fonctionnalité est uniquement disponible pour le modèle Dream',
       });

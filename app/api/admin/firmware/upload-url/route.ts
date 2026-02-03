@@ -3,7 +3,6 @@
  * Retourne une URL signée pour upload direct vers R2 (Cloudflare)
  */
 
-import { NextResponse } from 'next/server';
 import { withAdminAuth, AdminAuthenticatedRequest } from '@/lib/withAdminAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { FirmwareErrors } from '../errors';

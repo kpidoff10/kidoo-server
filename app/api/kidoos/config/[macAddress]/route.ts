@@ -96,12 +96,12 @@ export async function GET(
 
     // Configuration Bedtime
     if (kidoo.configDream) {
-      // Bedtime schedule
+      // Bedtime schedule (clés en minuscules pour l'ESP: monday, tuesday, ...)
       let bedtimeWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
       if (kidoo.configDream.bedtimeSchedules && kidoo.configDream.bedtimeSchedules.length > 0) {
         bedtimeWeekdaySchedule = {};
         kidoo.configDream.bedtimeSchedules.forEach((schedule) => {
-          bedtimeWeekdaySchedule![schedule.weekday] = {
+          bedtimeWeekdaySchedule![schedule.weekday.toLowerCase()] = {
             hour: schedule.hour,
             minute: schedule.minute,
             activated: schedule.activated,
@@ -118,12 +118,12 @@ export async function GET(
         nightlightAllNight: kidoo.configDream.allNight ?? false,
       };
 
-      // Wakeup schedule
+      // Wakeup schedule (clés en minuscules pour l'ESP: monday, tuesday, ...)
       let wakeupWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
       if (kidoo.configDream.wakeupSchedules && kidoo.configDream.wakeupSchedules.length > 0) {
         wakeupWeekdaySchedule = {};
         kidoo.configDream.wakeupSchedules.forEach((schedule) => {
-          wakeupWeekdaySchedule![schedule.weekday] = {
+          wakeupWeekdaySchedule![schedule.weekday.toLowerCase()] = {
             hour: schedule.hour,
             minute: schedule.minute,
             activated: schedule.activated,
