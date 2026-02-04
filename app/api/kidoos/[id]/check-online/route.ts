@@ -119,8 +119,15 @@ export const GET = withAuth(async (
         data: updateData,
       });
 
+      // Retourner deviceState si présent (Dream: idle, bedtime, wakeup)
+      const deviceState =
+        typeof response.deviceState === 'string' &&
+        ['idle', 'bedtime', 'wakeup'].includes(response.deviceState)
+          ? response.deviceState
+          : undefined;
+
       return createSuccessResponse(
-        { isOnline: true },
+        { isOnline: true, ...(deviceState && { deviceState }) },
         { message: 'Kidoo en ligne' }
       );
     }
