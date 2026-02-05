@@ -42,3 +42,15 @@ Ce projet dépend de `kidoo-shared` qui est un dépôt Git séparé. **Voir [VER
 **Résumé rapide :**
 - **Option recommandée :** Utiliser Git submodules (voir VERCEL_SETUP.md)
 - **Alternative :** Définir la variable d'environnement `KIDOO_SHARED_REPO` sur Vercel
+
+### Variables d'environnement (FFmpeg API)
+
+Pour le transcodage des clips vidéo (MP4 → .bin RGB565 + preview), ajoutez dans `.env` :
+
+```env
+FFMPEG_API_KEY=<votre clé API ffmpeg-api.com>
+# Optionnel
+FFMPEG_API_URL=https://api.ffmpeg-api.com
+```
+
+Obtenez votre clé sur [ffmpeg-api.com](https://ffmpeg-api.com/).

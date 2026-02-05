@@ -8,8 +8,30 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { KIDOO_MODELS } from '@kidoo/shared';
 
+function Smile({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn('size-4 shrink-0', className)}
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+      <line x1="9" x2="9.01" y1="9" y2="9" />
+      <line x1="15" x2="15.01" y1="9" y2="9" />
+    </svg>
+  );
+}
+
 const MENU_ITEMS = [
   { href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard },
+  { href: '/admin/personnages', label: 'Personnages', icon: Smile },
 ] as const;
 
 const FIRMWARE_BASE = '/admin/firmware';
