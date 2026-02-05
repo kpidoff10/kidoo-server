@@ -16,6 +16,261 @@ enum TagType {
   SOUND
 }
 
+// Personnage TamaBotchi (admin)
+enum CharacterSex {
+  FEMALE
+  MALE
+}
+
+enum CharacterPersonality {
+  TIMID
+  GRUMPY
+  FUNNY
+  ALWAYS_HUNGRY
+  BASIC
+}
+
+model Character {
+  id               String               @id @default(uuid())
+  name             String?              // Display name (e.g. Gochi)
+  defaultImageUrl  String?              // Default image (R2 or external URL)
+  stylePrompt      String?              // Prompt style pour génération IA (émotions)
+  sex              CharacterSex         // Female or male
+  personality      CharacterPersonality // Default character / personality
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  clips            Clip[]
+  emotionDevices   EmotionDevice[]
+  rules            Rule[]
+
+  @@map("characters")
+}
+
+// --- Émotions (roadmap) ---
+enum EventType {
+  RFID
+  TEMP
+  IMU
+  TOUCH
+  POWER
+  SYSTEM
+}
+
+enum EventKey {
+  TAG_PRESENT
+  TAG_ABSENT
+  TEMP_READING
+  TEMP_HOT
+  TEMP_COLD
+  IMU_SHAKE
+  IMU_TILT
+  TOUCH_TAP
+  TOUCH_LONG
+  CHARGING_STARTED
+  CHARGING_STOPPED
+  SLEEP_ENTER
+  SLEEP_EXIT
+  CUSTOM
+}
+
+enum ClipStatus {
+  DRAFT
+  GENERATING
+  READY
+  FAILED
+  DISABLED
+}
+
+enum FaceRegionKey {
+  LEFT_EYE
+  RIGHT_EYE
+  MOUTH
+}
+
+enum CornerStyle {
+  ROUNDED
+  SQUARE
+}
+
+enum EmotionDeviceMode {
+  NORMAL
+  CHARGING
+  SLEEP
+}
+
+model Emotion {
+  id           String   @id @default(uuid())
+  key          String   @unique // HOT, OK, COLD, BRUSH, SLEEP, etc.
+  label        String   // Libellé affiché
+  promptCustom String?  // Personnalisation du prompt (ex: "manger un poulet", "zzzz pour dormir")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clips            Clip[]
+  deviceClipCaches DeviceClipCache[]
+
+  @@map("emotions")
+}
+
+model Clip {
+  id          String     @id @default(uuid())
+  characterId String
+  emotionId   String
+  status      ClipStatus @default(DRAFT)
+  fileUrl     String?    // URL .bin (R2)
+  sha256      String?
+  sizeBytes   Int?
+  width       Int?      // 240
+  height      Int?      // 280
+  fps         Int?      // 10
+  frames      Int?      // 60
+  durationS   Float?    // 6
+  prompt      String?   @db.Text
+  modelName   String?   // grok-imagine-video
+  xaiJobId    String?   // ID du job xAI (pour poll le résultat)
+  previewUrl      String?   // MP4/GIF preview
+  loopStartFrame  Int?      // Frame (0-based) début de boucle
+  loopEndFrame    Int?      // Frame (0-based) fin de boucle (si null = dernière frame)
+  weight          Int       @default(100) // Poids pour sélection aléatoire
+  tags           String[]  @default([])  // Tags libres (Postgres)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  character       Character         @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  emotion         Emotion           @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+  faceRegions     ClipFaceRegion[]
+  artifacts       ClipArtifact[]
+  deviceClipCaches DeviceClipCache[]
+
+  @@index([characterId])
+  @@index([emotionId])
+  @@index([characterId, emotionId])
+  @@index([status])
+  @@map("clips")
+}
+
+model ClipArtifact {
+  id          String       @id @default(uuid())
+  clipId      String
+  frameIndex  Int          @default(0)
+  name        String       // Nom de l'artefact (ex: "zzz", "sleep")
+  x           Float        // 0-1 normalisé
+  y           Float
+  w           Float
+  h           Float
+  cornerStyle CornerStyle  @default(ROUNDED)
+  imageUrl    String?      // Image masque (fond noir + région blanche) hébergée sur R2
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  clip Clip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@index([clipId])
+  @@map("clip_artifacts")
+}
+
+model ClipFaceRegion {
+  id          String       @id @default(uuid())
+  clipId      String
+  regionKey   FaceRegionKey  // LEFT_EYE | RIGHT_EYE | MOUTH
+  frameIndex  Int            @default(0) // Index de frame (0-based)
+  x           Float          // 0-1 normalisé
+  y           Float
+  w           Float
+  h           Float
+  cornerStyle CornerStyle    @default(ROUNDED) // Coins arrondis ou carrés (par région)
+  imageUrl    String?        // Image masque (fond noir + région blanche) hébergée sur R2
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  clip Clip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@unique([clipId, regionKey, frameIndex])
+  @@index([clipId])
+  @@map("clip_face_regions")
+}
+
+model EmotionDevice {
+  id              String            @id @default(uuid())
+  characterId     String
+  pubnubChannel   String?
+  mode            EmotionDeviceMode @default(NORMAL)
+  isCharging      Boolean           @default(false)
+  lastSeenAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  character       Character         @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  deviceClipCaches DeviceClipCache[]
+
+  @@index([characterId])
+  @@map("emotion_devices")
+}
+
+model DeviceClipCache {
+  deviceId    String
+  emotionId   String
+  slot        Int      // 1..5
+  clipId      String
+  lastSeenAt  DateTime @default(now())
+  lastPlayedAt DateTime?
+
+  device  EmotionDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  emotion Emotion       @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+  clip    Clip          @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@id([deviceId, emotionId, slot])
+  @@index([deviceId])
+  @@index([emotionId])
+  @@index([clipId])
+  @@map("device_clip_caches")
+}
+
+model Rule {
+  id          String    @id @default(uuid())
+  characterId String?   // null = règle globale
+  enabled     Boolean   @default(true)
+  priority    Int       @default(0) // Plus haut = prioritaire
+  cooldownMs  Int       @default(0)
+  eventType   EventType
+  eventKey    EventKey
+  conditions  Json?     // DSL conditions (MVP)
+  response    Json      // { emotionKey, actions?, ... }
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([enabled, eventType, eventKey])
+  @@map("rules")
+}
+
+// RFID → objet → émotion (roadmap)
+model ObjectType {
+  id        String   @id @default(uuid())
+  key       String   @unique // Ex: brush, bottle, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rfidObjects RfidObject[]
+
+  @@map("object_types")
+}
+
+model RfidObject {
+  uid          String     @unique // UID du tag NFC
+  objectTypeId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  objectType ObjectType @relation(fields: [objectTypeId], references: [id], onDelete: Cascade)
+
+  @@index([objectTypeId])
+  @@map("rfid_objects")
+}
+
 // Modèles Kidoo (aligné avec KIDOO_MODELS dans kidoo-shared)
 enum KidooModel {
   basic
