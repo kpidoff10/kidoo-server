@@ -10,6 +10,8 @@ export interface Character {
   defaultImageUrl: string | null;
   sex: string;
   personality: string;
+  imageWidth: number;
+  imageHeight: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,15 +23,21 @@ export interface CharacterClip {
   status: string;
   fileUrl: string | null;
   previewUrl: string | null;
+  workingPreviewUrl?: string | null;
   weight: number;
   emotion: { id: string; key: string; label: string };
   createdAt: string;
   updatedAt: string;
 }
 
+/** URL de preview effective (travail si trim, sinon base). Ne jamais modifier previewUrl après récupération xAI. */
+export function getEffectivePreviewUrl(clip: { previewUrl?: string | null; workingPreviewUrl?: string | null }): string | null {
+  return clip.workingPreviewUrl ?? clip.previewUrl ?? null;
+}
+
 /** Détail d'un clip (pour la page /admin/clips/[id]) */
 export interface CharacterClipDetail extends CharacterClip {
-  character: { id: string; name: string | null };
+  character: { id: string; name: string | null; imageWidth?: number; imageHeight?: number };
   prompt?: string | null;
   /** Métadonnées optionnelles (fps, durée, nombre de frames) pour la barre de timeline */
   fps?: number | null;
@@ -49,6 +57,7 @@ export interface CharacterClipDetail extends CharacterClip {
 
 /** Un artefact (région nommée, ex. "zzz") — couleur violette dans l’éditeur */
 export interface ArtifactRegion {
+  id?: string;
   name: string;
   x: number;
   y: number;
@@ -162,6 +171,35 @@ export const charactersApi = {
       }
     ),
 
+  /** Ajouter un clip manuellement en uploadant un MP4 */
+  uploadClip: async (
+    characterId: string,
+    emotionKey: string,
+    file: File
+  ): Promise<{ success: true; data: { clipId: string; status: string; previewUrl: string } } | { success: false; error: string }> => {
+    const formData = new FormData();
+    formData.append('characterId', characterId);
+    formData.append('emotionKey', emotionKey);
+    formData.append('file', file);
+
+    const res = await fetch('/api/admin/clips/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      return {
+        success: false,
+        error: json.error ?? 'Erreur lors de l\'upload',
+      };
+    }
+
+    return { success: true, data: json.data };
+  },
+
   /** Vérifier le statut du job xAI et mettre à jour le clip (GENERATING → READY/FAILED) */
   syncClipStatus: (clipId: string) =>
     api<{ clipId: string; status: string; videoUrl?: string; jobStatus?: string; message?: string }>(
@@ -169,16 +207,9 @@ export const charactersApi = {
       { method: 'POST' }
     ),
 
-  /** Convertir manuellement le .bin à partir du preview (quand previewUrl existe mais pas fileUrl) */
-  convertClip: (clipId: string) =>
-    api<{ clipId: string; status: string; fileUrl: string }>(
-      `/api/admin/clips/${clipId}/convert`,
-      { method: 'POST' }
-    ),
-
-  /** Découper la vidéo preview (début/fin en secondes), enregistre le nouveau MP4 sur Cloudflare */
+  /** Découper la vidéo preview (début/fin en secondes), enregistre le nouveau MP4 de travail sur R2 */
   trimClip: (clipId: string, startTimeS: number, endTimeS: number) =>
-    api<{ clipId: string; previewUrl: string; durationS: number; frames: number }>(
+    api<{ clipId: string; workingPreviewUrl: string; durationS: number; frames: number }>(
       `/api/admin/clips/${clipId}/trim`,
       {
         method: 'POST',
@@ -193,6 +224,30 @@ export const charactersApi = {
       generatedRegions: Array<{ frameIndex: number; regionKey: string; imageUrl: string }>;
       generatedArtifacts: Array<{ frameIndex: number; artifactId: string; name: string; imageUrl: string }>;
     }>(`/api/admin/clips/${clipId}/generate-region-images`, { method: 'POST' }),
+
+  /** Upload une image région extraite côté client (même rendu que le tooltip) */
+  uploadRegionImage: async (
+    clipId: string,
+    file: Blob,
+    params: { type: 'region'; frameIndex: number; regionKey: string } | { type: 'artifact'; frameIndex: number; artifactId: string }
+  ) => {
+    const formData = new FormData();
+    formData.append('file', file, 'region.png');
+    formData.append('type', params.type);
+    formData.append('frameIndex', String(params.frameIndex));
+    if (params.type === 'region') {
+      formData.append('regionKey', params.regionKey);
+    } else {
+      formData.append('artifactId', params.artifactId);
+    }
+    const res = await fetch(`/api/admin/clips/${clipId}/upload-region-image`, {
+      method: 'POST',
+      body: formData,
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error?.message ?? 'Upload échoué');
+    return json;
+  },
 
   /** URL signée pour upload d'image (puis PUT direct vers R2) */
   getUploadImageUrl: (characterId: string, params: { fileName: string; fileSize: number; contentType?: string }) =>

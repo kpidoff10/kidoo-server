@@ -1,13 +1,14 @@
 /**
  * POST /api/admin/clips/[id]/sync-status
- * Interroge xAI pour le statut du job, lance le job worker (transcode + upload R2), puis met le clip en READY.
+ * Interroge xAI pour le statut du job, télécharge la vidéo MP4, l'upload sur R2, puis met le clip en READY.
+ * Le transcodage MJPEG est fait plus tard dans "Création de la vidéo".
  */
 
 import { prisma } from '@/lib/prisma';
 import { withAdminAuth, AdminAuthenticatedRequest } from '@/lib/withAdminAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { getVideoGenerationResult } from '@/lib/xai';
-import { processClipFromVideoUrl } from '@/lib/clipWorker';
+import { uploadVideoPreviewToR2 } from '@/lib/clipWorker';
 
 export const POST = withAdminAuth(
   async (_request: AdminAuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -29,15 +30,15 @@ export const POST = withAdminAuth(
       const result = await getVideoGenerationResult(clip.xaiJobId);
 
       if (result.status === 'completed' && result.videoUrl) {
-        const workerResult = await processClipFromVideoUrl(clipId, result.videoUrl);
+        const workerResult = await uploadVideoPreviewToR2(clipId, result.videoUrl);
 
         if ('error' in workerResult) {
           await prisma.clip.update({
             where: { id: clipId },
             data: { status: 'FAILED' },
           });
-          return createErrorResponse('GENERATION_FAILED', 502, {
-            message: `Job worker: ${workerResult.error}`,
+          return createErrorResponse('UPLOAD_R2_FAILED', 502, {
+            message: workerResult.error,
           });
         }
 
@@ -45,20 +46,14 @@ export const POST = withAdminAuth(
           where: { id: clipId },
           data: {
             status: 'READY',
-            fileUrl: workerResult.fileUrl,
             previewUrl: workerResult.previewUrl,
-            sha256: workerResult.sha256,
-            sizeBytes: workerResult.sizeBytes,
-            width: 240,
-            height: 280,
-            fps: 10,
-            frames: 60,
+            workingPreviewUrl: workerResult.previewUrl,
           },
         });
+
         return createSuccessResponse({
           clipId,
           status: 'READY',
-          fileUrl: workerResult.fileUrl,
           previewUrl: workerResult.previewUrl,
         });
       }

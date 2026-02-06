@@ -25,3 +25,4 @@ export const PERSONALITY_OPTIONS: { value: string; label: string }[] = [
   { value: CharacterPersonality.ALWAYS_HUNGRY, label: 'Toujours faim' },
   { value: CharacterPersonality.BASIC, label: 'Basique' },
 ];
+

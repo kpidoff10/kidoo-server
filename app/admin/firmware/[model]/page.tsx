@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getKidooModel, isKidooModelId } from '@kidoo/shared';
+import { AdminContent } from '@/components/ui/admin-content';
 import { useFirmwares, useDeleteFirmware, useCreateFirmware } from '../../hooks/useFirmwares';
 import { useFileUpload } from '../../contexts';
 import { firmwareApi } from '../../lib/firmwareApi';
@@ -37,7 +38,7 @@ export default function AdminFirmwareModelPage() {
 
   if (!isKidooModelId(modelId)) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <AdminContent>
         <h1 className="text-2xl font-bold text-foreground">Modèle inconnu</h1>
         <p className="mt-2 text-muted-foreground">
           Le modèle &quot;{modelId}&quot; n&apos;existe pas.
@@ -48,14 +49,14 @@ export default function AdminFirmwareModelPage() {
         >
           Retour au tableau de bord
         </Link>
-      </div>
+      </AdminContent>
     );
   }
 
   const model = getKidooModel(modelId)!;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <AdminContent>
       <h1 className="text-2xl font-bold text-foreground">
         Firmware – {model.label}
       </h1>
@@ -64,7 +65,7 @@ export default function AdminFirmwareModelPage() {
       </p>
 
       <FirmwareList modelId={modelId as KidooModelId} modelLabel={model.label} />
-    </div>
+    </AdminContent>
   );
 }
 

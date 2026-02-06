@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useEmotions, useCreateEmotion, useUpdateEmotion, useDeleteEmotion } from '../../hooks/useEmotions';
-import { useCharacterClips, useGenerateClip, useSyncClipStatus, useConvertClip } from '../../hooks/useCharacters';
+import { useCharacterClips, useGenerateClip, useSyncClipStatus, useUploadClip } from '../../hooks/useCharacters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { CharacterClip } from '../../lib/charactersApi';
+import { getEffectivePreviewUrl } from '../../lib/charactersApi';
 
 interface CharacterEmotionsTabProps {
   characterId: string;
@@ -25,7 +26,9 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
   const createMutation = useCreateEmotion();
   const generateClipMutation = useGenerateClip(characterId);
   const syncClipMutation = useSyncClipStatus(characterId);
-  const convertClipMutation = useConvertClip(characterId);
+  const uploadClipMutation = useUploadClip(characterId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingEmotionKeyRef = useRef<string | null>(null);
   const [newKey, setNewKey] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [newPromptCustom, setNewPromptCustom] = useState('');
@@ -47,6 +50,24 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
       setNewKey('');
       setNewLabel('');
       setNewPromptCustom('');
+    } catch {
+      // Error shown via mutation
+    }
+  };
+
+  const handleUploadClipClick = (emotionKey: string) => {
+    pendingEmotionKeyRef.current = emotionKey;
+    fileInputRef.current?.click();
+  };
+
+  const handleUploadClipFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const emotionKey = pendingEmotionKeyRef.current;
+    e.target.value = '';
+    pendingEmotionKeyRef.current = null;
+    if (!file || !emotionKey) return;
+    try {
+      await uploadClipMutation.mutateAsync({ emotionKey, file });
     } catch {
       // Error shown via mutation
     }
@@ -111,6 +132,14 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
         )}
       </section>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/mp4,.mp4"
+        className="hidden"
+        onChange={handleUploadClipFileChange}
+      />
+
       {!emotions?.length ? (
         <p className="text-sm text-muted-foreground">
           Aucune émotion. Ajoutez-en ci‑dessus ou exécutez <code className="rounded bg-muted px-1">npm run db:seed</code> pour les émotions de base.
@@ -122,29 +151,31 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
             const ready = readyCount(emotionClips);
             return (
               <AccordionItem key={emotion.id} value={emotion.id} className="px-4">
-                <AccordionTrigger className="hover:no-underline [&[data-state=open]>svg]:rotate-180">
-                  <div className="flex flex-1 flex-wrap items-center justify-between gap-3 py-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="font-mono font-medium text-foreground">{emotion.key}</span>
-                      <span className="text-muted-foreground">{emotion.label}</span>
-                      <span className="text-sm text-muted-foreground">
-                        ({ready} clip{ready !== 1 ? 's' : ''} READY)
-                      </span>
-                    </div>
-                    <div className="pr-2">
-                      <EmotionRowButtons
-                        emotion={emotion}
-                        editingId={editingId}
-                        setEditingId={setEditingId}
-                        editLabel={editLabel}
-                        setEditLabel={setEditLabel}
-                        editPromptCustom={editPromptCustom}
-                        setEditPromptCustom={setEditPromptCustom}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+                  <div className="min-w-0 flex-1">
+                    <AccordionTrigger className="w-full hover:no-underline [&[data-state=open]>svg]:rotate-180 [&>svg]:shrink-0">
+                      <div className="flex flex-wrap items-center gap-3 py-1">
+                        <span className="font-mono font-medium text-foreground">{emotion.key}</span>
+                        <span className="text-muted-foreground">{emotion.label}</span>
+                        <span className="text-sm text-muted-foreground">
+                          ({ready} clip{ready !== 1 ? 's' : ''} READY)
+                        </span>
+                      </div>
+                    </AccordionTrigger>
                   </div>
-                </AccordionTrigger>
+                  <div className="shrink-0 pr-2" onClick={(e) => e.stopPropagation()}>
+                    <EmotionRowButtons
+                      emotion={emotion}
+                      editingId={editingId}
+                      setEditingId={setEditingId}
+                      editLabel={editLabel}
+                      setEditLabel={setEditLabel}
+                      editPromptCustom={editPromptCustom}
+                      setEditPromptCustom={setEditPromptCustom}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
                 <AccordionContent>
                   <div className="flex flex-col gap-3">
                     {emotion.promptCustom && (
@@ -164,11 +195,22 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                           ? 'Génération…'
                           : 'Générer une variante (IA)'}
                       </Button>
-                      <Button size="sm" variant="outline" disabled title="À venir">
-                        Ajouter un clip manuel
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={uploadClipMutation.isPending}
+                        onClick={() => handleUploadClipClick(emotion.key)}
+                        title="Ajoute un clip en uploadant un fichier MP4 manuellement."
+                      >
+                        {uploadClipMutation.isPending && uploadClipMutation.variables?.emotionKey === emotion.key
+                          ? 'Upload…'
+                          : 'Ajouter un clip manuel (MP4)'}
                       </Button>
                       {generateClipMutation.isError && generateClipMutation.variables === emotion.key && (
                         <span className="text-sm text-destructive">{generateClipMutation.error?.message}</span>
+                      )}
+                      {uploadClipMutation.isError && uploadClipMutation.variables?.emotionKey === emotion.key && (
+                        <span className="text-sm text-destructive">{uploadClipMutation.error?.message}</span>
                       )}
                     </div>
                     {emotionClips.length === 0 ? (
@@ -200,9 +242,9 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                                   : 'Vérifier le statut'}
                               </Button>
                             )}
-                            {clip.previewUrl && (
+                            {getEffectivePreviewUrl(clip) && (
                               <a
-                                href={clip.previewUrl}
+                                href={getEffectivePreviewUrl(clip)!}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-primary hover:underline"
@@ -210,25 +252,9 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                                 Aperçu
                               </a>
                             )}
-                            {clip.previewUrl && !clip.fileUrl && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={convertClipMutation.isPending && convertClipMutation.variables === clip.id}
-                                onClick={() => convertClipMutation.mutate(clip.id)}
-                                title="Convertir manuellement le preview en .bin (pour le device)"
-                              >
-                                {convertClipMutation.isPending && convertClipMutation.variables === clip.id
-                                  ? 'Conversion…'
-                                  : 'Convertir en .bin'}
-                              </Button>
-                            )}
-                            <Link href={`/admin/clips/${clip.id}`} className="text-primary hover:underline">
+                            <Link href={`/admin/personnages/${characterId}/clips/${clip.id}`} className="text-primary hover:underline">
                               Détail
                             </Link>
-                            {convertClipMutation.isError && convertClipMutation.variables === clip.id && (
-                              <span className="text-destructive">{convertClipMutation.error?.message}</span>
-                            )}
                             {syncClipMutation.isError && syncClipMutation.variables === clip.id && (
                               <span className="text-destructive">{syncClipMutation.error?.message}</span>
                             )}

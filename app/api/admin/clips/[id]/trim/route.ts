@@ -18,7 +18,8 @@ export const POST = withAdminAuth(
       if (!clip) {
         return createErrorResponse('CLIP_NOT_FOUND', 404);
       }
-      if (!clip.previewUrl) {
+      const sourcePreviewUrl = clip.workingPreviewUrl ?? clip.previewUrl;
+      if (!sourcePreviewUrl) {
         return createErrorResponse('VALIDATION_ERROR', 400, {
           message: 'Aucun preview pour ce clip.',
         });
@@ -33,9 +34,9 @@ export const POST = withAdminAuth(
         });
       }
 
-      const { previewUrl: newPreviewUrl, durationS } = await trimClipPreview(
+      const { workingPreviewUrl, durationS } = await trimClipPreview(
         clipId,
-        clip.previewUrl,
+        sourcePreviewUrl,
         startTimeS,
         endTimeS
       );
@@ -46,7 +47,7 @@ export const POST = withAdminAuth(
       await prisma.clip.update({
         where: { id: clipId },
         data: {
-          previewUrl: newPreviewUrl,
+          workingPreviewUrl,
           durationS,
           frames,
           loopStartFrame: null,
@@ -56,7 +57,7 @@ export const POST = withAdminAuth(
 
       return createSuccessResponse({
         clipId,
-        previewUrl: newPreviewUrl,
+        workingPreviewUrl,
         durationS,
         frames,
       });

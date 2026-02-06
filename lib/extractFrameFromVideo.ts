@@ -1,6 +1,7 @@
 /**
- * Extrait une frame d'une vidéo (URL ou chemin) à l'index donné.
- * Utilise ffmpeg. Préfère ffmpeg-static (binaire inclus), sinon FFMPEG_PATH ou "ffmpeg" dans PATH.
+ * Extrait une frame d'une vidéo (URL ou chemin) par seek temporel.
+ * Utilise ffmpeg avec -ss (input seeking) pour correspondre au rendu navigateur.
+ * Préfère ffmpeg-static (binaire inclus), sinon FFMPEG_PATH ou "ffmpeg" dans PATH.
  */
 
 import { execFile } from 'child_process';
@@ -46,24 +47,29 @@ function getFfmpegPath(): string {
 
 /**
  * Extrait la frame à l'index frameIndex (0-based) de la vidéo et retourne le buffer PNG.
+ * Utilise le filtre select pour une extraction frame-accurate (correspond exactement à ce que
+ * le navigateur affiche à currentTime = frameIndex/fps).
  * @param videoInputUrl - URL (http/https) ou chemin du fichier vidéo
  * @param frameIndex - Index de la frame (0-based)
+ * @param fps - Framerate logique du clip (défaut: 10)
  */
-export async function extractFrameAt(videoInputUrl: string, frameIndex: number): Promise<Buffer> {
+export async function extractFrameAt(videoInputUrl: string, frameIndex: number, fps: number = 10): Promise<Buffer> {
   const ffmpegPath = getFfmpegPath();
   const tempDir = os.tmpdir();
   const outPath = path.join(tempDir, `kidoo-frame-${Date.now()}-${frameIndex}-${Math.random().toString(36).slice(2)}.png`);
 
   try {
-    // select=eq(n\,N) : frame exacte N (échapper la virgule pour le shell)
+    // -ss après -i = output seeking : frame-accurate (évite le seek par keyframe qui décalait les régions).
+    // Seek temporel : frameIndex / fps = position en secondes (aligné avec le navigateur).
+    const seekTime = frameIndex / fps;
     await execFileAsync(ffmpegPath, [
       '-i', videoInputUrl,
-      '-vf', `select=eq(n\\,${frameIndex})`,
+      '-ss', String(seekTime),
       '-vframes', '1',
       '-y',
       outPath,
     ], {
-      timeout: 60000, // 60s max par frame
+      timeout: 90000, // 90s (décodage depuis le début peut être lent sur vidéos longues)
       maxBuffer: 10 * 1024 * 1024, // 10 MB
     });
 

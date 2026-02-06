@@ -7,7 +7,13 @@
 import { prisma } from '@/lib/prisma';
 import { withAdminAuth, AdminAuthenticatedRequest } from '@/lib/withAdminAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
-import { buildPromptForEmotion, generateVideo } from '@/lib/xai';
+import {
+  buildPromptForEmotion,
+  generateVideo,
+  XAI_VIDEO_DURATION_SECONDS,
+  CLIP_DEFAULT_FPS,
+} from '@/lib/xai';
+import { uploadVideoPreviewToR2 } from '@/lib/clipWorker';
 import { z } from 'zod';
 
 const bodySchema = z.object({
@@ -44,6 +50,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     const prompt = buildPromptForEmotion(emotion.key, emotion.label, emotion.promptCustom);
     const imageUrl = character.defaultImageUrl ?? null;
 
+    const fps = CLIP_DEFAULT_FPS;
     const clip = await prisma.clip.create({
       data: {
         characterId,
@@ -51,16 +58,21 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
         status: 'GENERATING',
         prompt,
         modelName: 'grok-imagine-video',
-        durationS: 3,
-        width: 240,
-        height: 280,
-        fps: 10,
-        frames: 30,
+        durationS: XAI_VIDEO_DURATION_SECONDS,
+        width: character.imageWidth,
+        height: character.imageHeight,
+        fps,
+        frames: Math.ceil(XAI_VIDEO_DURATION_SECONDS * fps),
       },
       include: { emotion: true },
     });
 
-    const result = await generateVideo({ prompt, imageUrl });
+    const result = await generateVideo({
+      prompt,
+      imageUrl,
+      width: character.imageWidth ?? 240,
+      height: character.imageHeight ?? 280,
+    });
 
     if (result.error) {
       await prisma.clip.update({
@@ -73,11 +85,24 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     }
 
     if (result.videoUrl) {
+      const workerResult = await uploadVideoPreviewToR2(clip.id, result.videoUrl);
+
+      if ('error' in workerResult) {
+        await prisma.clip.update({
+          where: { id: clip.id },
+          data: { status: 'FAILED' },
+        });
+        return createErrorResponse('UPLOAD_R2_FAILED', 502, {
+          message: workerResult.error,
+        });
+      }
+
       await prisma.clip.update({
         where: { id: clip.id },
         data: {
           status: 'READY',
-          previewUrl: result.videoUrl,
+          previewUrl: workerResult.previewUrl,
+          workingPreviewUrl: workerResult.previewUrl,
         },
       });
     } else if (result.jobId) {

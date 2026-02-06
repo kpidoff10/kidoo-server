@@ -112,6 +112,7 @@ function buildFaceRegionsByFrame(
 
 /** Payload d’un artefact (région nommée, ex. "zzz") */
 interface ArtifactPayload {
+  id: string;
   name: string;
   x: number;
   y: number;
@@ -125,6 +126,7 @@ interface ArtifactPayload {
 /** Groupe les artefacts par frameIndex */
 function buildArtifactsByFrame(
   rows: Array<{
+    id: string;
     frameIndex: number;
     name: string;
     x: number;
@@ -140,6 +142,7 @@ function buildArtifactsByFrame(
     const fi = row.frameIndex;
     if (!byFrame[fi]) byFrame[fi] = [];
     byFrame[fi].push({
+      id: row.id,
       name: row.name,
       x: row.x,
       y: row.y,
@@ -165,7 +168,7 @@ export const GET = withAdminAuth(
         where: { id: clipId },
         include: {
           emotion: true,
-          character: { select: { id: true, name: true } },
+          character: { select: { id: true, name: true, imageWidth: true, imageHeight: true } },
           faceRegions: true,
           artifacts: true,
         },
@@ -250,7 +253,7 @@ export const PATCH = withAdminAuth(
           data: updateData,
           include: {
             emotion: true,
-            character: { select: { id: true, name: true } },
+            character: { select: { id: true, name: true, imageWidth: true, imageHeight: true } },
           },
         });
 
@@ -340,7 +343,7 @@ export const PATCH = withAdminAuth(
           where: { id: clipId },
           include: {
             emotion: true,
-            character: { select: { id: true, name: true } },
+            character: { select: { id: true, name: true, imageWidth: true, imageHeight: true } },
             faceRegions: true,
             artifacts: true,
           },

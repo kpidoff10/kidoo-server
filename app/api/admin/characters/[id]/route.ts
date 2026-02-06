@@ -70,6 +70,8 @@ export const PATCH = withAdminAuth(
           }),
           ...(parsed.data.sex !== undefined && { sex: parsed.data.sex }),
           ...(parsed.data.personality !== undefined && { personality: parsed.data.personality }),
+          ...(parsed.data.imageWidth !== undefined && { imageWidth: parsed.data.imageWidth }),
+          ...(parsed.data.imageHeight !== undefined && { imageHeight: parsed.data.imageHeight }),
         },
       });
 

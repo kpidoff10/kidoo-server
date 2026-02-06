@@ -148,12 +148,12 @@ export function useGenerateClip(characterId: string) {
   });
 }
 
-export function useSyncClipStatus(characterId: string) {
+export function useUploadClip(characterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (clipId: string) => {
-      const res = await charactersApi.syncClipStatus(clipId);
+    mutationFn: async ({ emotionKey, file }: { emotionKey: string; file: File }) => {
+      const res = await charactersApi.uploadClip(characterId, emotionKey, file);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
@@ -163,12 +163,12 @@ export function useSyncClipStatus(characterId: string) {
   });
 }
 
-export function useConvertClip(characterId: string) {
+export function useSyncClipStatus(characterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (clipId: string) => {
-      const res = await charactersApi.convertClip(clipId);
+      const res = await charactersApi.syncClipStatus(clipId);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
@@ -206,4 +206,10 @@ export function useGenerateRegionImages(clipId: string) {
       queryClient.invalidateQueries({ queryKey: CLIP_DETAIL_KEY(clipId) });
     },
   });
+}
+
+/** Invalide le cache du clip (ex. après génération côté client) */
+export function useInvalidateClip(clipId: string) {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: CLIP_DETAIL_KEY(clipId) });
 }

@@ -50,6 +50,8 @@ export function CharacterForm({
           defaultImageUrl: null,
           sex: 'FEMALE',
           personality: 'BASIC',
+          imageWidth: 240,
+          imageHeight: 280,
         };
 
   const form = useForm<CharacterFormValues>({
@@ -59,6 +61,8 @@ export function CharacterForm({
       defaultImageUrl: defaultValues.defaultImageUrl ?? '',
       sex: defaultValues.sex,
       personality: defaultValues.personality,
+      imageWidth: defaultValues.imageWidth ?? 240,
+      imageHeight: defaultValues.imageHeight ?? 280,
     },
   });
 
@@ -89,7 +93,7 @@ export function CharacterForm({
         </p>
       )}
 
-      <CharacterFormFields register={register} errors={errors} />
+      <CharacterFormFields register={register} errors={errors} setValue={setValue} watch={watch} />
 
       {characterId ? (
         <CharacterImageUpload

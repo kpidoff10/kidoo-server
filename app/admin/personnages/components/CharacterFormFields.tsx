@@ -1,8 +1,9 @@
 'use client';
 
-import { UseFormRegister, FieldErrors } from 'react-hook-form';
+import { UseFormRegister, FieldErrors, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { SEX_OPTIONS, PERSONALITY_OPTIONS } from './constants';
 import type { CharacterFormValues } from './CharacterForm';
 
@@ -12,9 +13,19 @@ const selectClassName =
 export interface CharacterFormFieldsProps {
   register: UseFormRegister<CharacterFormValues>;
   errors: FieldErrors<CharacterFormValues>;
+  setValue: UseFormSetValue<CharacterFormValues>;
+  watch: UseFormWatch<CharacterFormValues>;
 }
 
-export function CharacterFormFields({ register, errors }: CharacterFormFieldsProps) {
+export function CharacterFormFields({ register, errors, setValue, watch }: CharacterFormFieldsProps) {
+  const imageWidth = watch('imageWidth') ?? 240;
+  const imageHeight = watch('imageHeight') ?? 280;
+
+  const handleSwap = () => {
+    setValue('imageWidth', imageHeight);
+    setValue('imageHeight', imageWidth);
+  };
+
   return (
     <>
       <div className="space-y-2">
@@ -63,6 +74,45 @@ export function CharacterFormFields({ register, errors }: CharacterFormFieldsPro
         </select>
         {errors.personality && (
           <p className="text-sm text-destructive">{errors.personality.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Résolution (largeur × hauteur)</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            id="imageWidth"
+            type="number"
+            min={1}
+            max={4096}
+            {...register('imageWidth', { valueAsNumber: true })}
+            className="w-24"
+          />
+          <span className="text-sm text-muted-foreground">×</span>
+          <Input
+            id="imageHeight"
+            type="number"
+            min={1}
+            max={4096}
+            {...register('imageHeight', { valueAsNumber: true })}
+            className="w-24"
+          />
+          <span className="text-xs text-muted-foreground">px</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSwap}
+            title="Pivoter (swap largeur / hauteur)"
+          >
+            ↔
+          </Button>
+        </div>
+        {errors.imageWidth && (
+          <p className="text-sm text-destructive">{errors.imageWidth.message}</p>
+        )}
+        {errors.imageHeight && (
+          <p className="text-sm text-destructive">{errors.imageHeight.message}</p>
         )}
       </div>
     </>

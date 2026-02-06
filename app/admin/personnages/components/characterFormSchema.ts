@@ -16,6 +16,8 @@ export const characterFormSchema = z.object({
   defaultImageUrl: z.string().url().optional().nullable().or(z.literal('')),
   sex: z.nativeEnum(CharacterSex),
   personality: z.nativeEnum(CharacterPersonality),
+  imageWidth: z.coerce.number().int().min(1).max(4096).default(240),
+  imageHeight: z.coerce.number().int().min(1).max(4096).default(280),
 });
 
 export type CharacterFormValues = z.infer<typeof characterFormSchema>;

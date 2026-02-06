@@ -8,18 +8,71 @@ const XAI_API_KEY = process.env.XAI_API_KEY;
 const XAI_VIDEO_BASE = process.env.XAI_VIDEO_BASE || 'https://api.x.ai/v1/videos';
 const XAI_VIDEO_GENERATIONS_URL = process.env.XAI_VIDEO_URL || `${XAI_VIDEO_BASE}/generations`;
 
+/** Durée de la vidéo générée (secondes). Variable d'environnement XAI_VIDEO_DURATION_SECONDS, défaut 3. */
+export const XAI_VIDEO_DURATION_SECONDS = (() => {
+  const val = process.env.XAI_VIDEO_DURATION_SECONDS;
+  if (val == null || val === '') return 3;
+  const n = parseInt(val, 10);
+  return Number.isNaN(n) || n < 1 || n > 30 ? 3 : n;
+})();
+
+/** FPS des clips (pour calcul des frames). Variable d'environnement CLIP_DEFAULT_FPS, défaut 10. */
+export const CLIP_DEFAULT_FPS = (() => {
+  const val = process.env.CLIP_DEFAULT_FPS;
+  if (val == null || val === '') return 10;
+  const n = parseInt(val, 10);
+  return Number.isNaN(n) || n < 1 || n > 60 ? 10 : n;
+})();
+
+/** Ratios supportés par xAI : 16:9, 4:3, 1:1, 9:16, 3:4, 3:2, 2:3 */
+const XAI_ASPECT_RATIOS: Array<{ value: string; ratio: number }> = [
+  { value: '1:1', ratio: 1 },
+  { value: '16:9', ratio: 16 / 9 },
+  { value: '4:3', ratio: 4 / 3 },
+  { value: '3:2', ratio: 3 / 2 },
+  { value: '9:16', ratio: 9 / 16 },
+  { value: '3:4', ratio: 3 / 4 },
+  { value: '2:3', ratio: 2 / 3 },
+];
+
+/**
+ * Déduit le ratio d'aspect xAI depuis les dimensions du personnage (imageWidth × imageHeight).
+ * Cas courants : 240×280 (portrait) → 3:4, 280×240 (paysage) → 4:3, 240×240 (carré) → 1:1.
+ */
+export function getAspectRatioFromCharacter(width: number, height: number): string {
+  const w = Math.max(1, width);
+  const h = Math.max(1, height);
+  const targetRatio = w / h;
+
+  let closest = XAI_ASPECT_RATIOS[0];
+  let minDiff = Math.abs(targetRatio - closest.ratio);
+
+  for (const ar of XAI_ASPECT_RATIOS) {
+    const diff = Math.abs(targetRatio - ar.ratio);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = ar;
+    }
+  }
+
+  return closest.value;
+}
+
 export function buildPromptForEmotion(
   emotionKey: string,
   emotionLabel: string,
   customPrompt?: string | null
 ): string {
   const base =
-    `Animation de 3 secondes exprimant uniquement l'émotion "${emotionLabel}" (${emotionKey}). ` +
+    `Animation de ${XAI_VIDEO_DURATION_SECONDS} seconde${XAI_VIDEO_DURATION_SECONDS > 1 ? 's' : ''} exprimant uniquement l'émotion "${emotionLabel}" (${emotionKey}). ` +
     `Pas de bras, pas de corps : on veut vraiment uniquement le visage, comme sur l'image de base. Cadrage serré sur le visage. ` +
     `Le personnage ne doit pas parler : pas de mouvements de bouche pour la parole, pas de dialogue. On veut seulement l'émotion (expression du visage, regard), pas la parole. ` +
-    `N'hésite pas à ajouter des objets ou accessoires pour illustrer l'émotion (ex: faim → manger un poulet ou demander son biberon, dormir → "zzzz", etc.). ` +
-    `Le personnage doit rester fidèle à l'image de référence. ` +
-    `Important : la dernière frame doit être identique à la première frame pour une homogénéité et une boucle visuelle parfaite.`;
+    `Tu peux rester sur une animation simple (expression du visage uniquement) ou, si pertinent, ajouter des objets/accessoires pour illustrer l'émotion (ex: faim → manger, dormir → "zzzz"). Les artefacts ne sont pas obligatoires : une version basic sans objet convient très bien. ` +
+    `Tous les objets ou artefacts ajoutés (bulles "zzz", aliments, accessoires, etc.) doivent être nettement séparables du fond et du visage, afin de pouvoir être découpés et isolés indépendamment en post-traitement. ` +
+    `Interdit : rien ne doit couvrir tout l'écran (pas de pluie de confettis, pas d'effets plein écran, pas de particules qui envahissent la scène). Chaque élément doit rester localisé et distinct pour permettre un découpage par régions. ` +
+    `Transition obligatoire : la dernière frame doit être identique à la première frame (retour à l'image de base) pour permettre une boucle fluide. ` +
+    `Le personnage doit rester fidèle à l'image de référence. `;
+
   if (customPrompt?.trim()) {
     return `${base} Personnalisation pour cette émotion : ${customPrompt.trim()}.`;
   }
@@ -30,6 +83,9 @@ export interface GenerateVideoOptions {
   prompt: string;
   /** URL publique de l'image de référence (image par défaut du personnage) */
   imageUrl: string | null;
+  /** Dimensions du personnage pour déduire aspect_ratio (imageWidth × imageHeight) */
+  width?: number;
+  height?: number;
 }
 
 export interface GenerateVideoResult {
@@ -48,10 +104,16 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<Gene
   }
 
   try {
+    const width = options.width ?? 240;
+    const height = options.height ?? 280;
+    const aspectRatio = getAspectRatioFromCharacter(width, height);
+
     const body: Record<string, unknown> = {
       model: 'grok-imagine-video',
       prompt: options.prompt,
-      duration: 3,
+      duration: XAI_VIDEO_DURATION_SECONDS,
+      aspect_ratio: aspectRatio,
+      resolution: '480p',
     };
     if (options.imageUrl) {
       body.image = { url: options.imageUrl };

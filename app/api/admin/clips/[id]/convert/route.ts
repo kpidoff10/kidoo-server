@@ -18,7 +18,8 @@ export const POST = withAdminAuth(
       if (!clip) {
         return createErrorResponse('CLIP_NOT_FOUND', 404);
       }
-      if (!clip.previewUrl) {
+      const effectivePreviewUrl = clip.workingPreviewUrl ?? clip.previewUrl;
+      if (!effectivePreviewUrl) {
         return createErrorResponse('VALIDATION_ERROR', 400, {
           message: 'Aucun preview pour ce clip. Impossible de convertir sans source.',
         });
@@ -29,7 +30,17 @@ export const POST = withAdminAuth(
         });
       }
 
-      const workerResult = await processClipFromPreviewUrl(clipId, clip.previewUrl);
+      const fps = clip.fps ?? 10;
+      const frames = clip.frames ?? (clip.durationS ? Math.ceil(clip.durationS * fps) : 30);
+      const transcodeOpts = {
+        fps,
+        maxFrames: frames + 20,
+        maxDurationS: clip.durationS ? clip.durationS + 1 : undefined,
+        width: clip.width ?? 240,
+        height: clip.height ?? 280,
+      };
+
+      const workerResult = await processClipFromPreviewUrl(clipId, effectivePreviewUrl, transcodeOpts);
 
       if ('error' in workerResult) {
         return createErrorResponse('CONVERSION_FAILED', 502, {
@@ -44,10 +55,10 @@ export const POST = withAdminAuth(
           fileUrl: workerResult.fileUrl,
           sha256: workerResult.sha256,
           sizeBytes: workerResult.sizeBytes,
-          width: 240,
-          height: 280,
-          fps: 10,
-          frames: 60,
+          width: clip.width ?? 240,
+          height: clip.height ?? 280,
+          fps,
+          frames,
         },
       });
 

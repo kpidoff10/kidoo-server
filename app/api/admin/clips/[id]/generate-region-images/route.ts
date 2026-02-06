@@ -4,8 +4,8 @@
  * pour chaque frame concernée on extrait la frame vidéo, puis on recadre chaque région/artefact
  * et on enregistre l'image sur R2 + URL en BDD.
  *
- * Format : PNG pleine frame (taille vidéo), fond transparent, contenu de la région à la bonne position.
- * Idéal pour superposer plusieurs régions (draw à 0,0).
+ * Format : PNG pleine frame à la résolution cible (clip.width x clip.height), fond transparent,
+ * contenu à la bonne position. Même scale+pad que le transcodage vidéo pour éviter tout décalage.
  */
 
 import { prisma } from '@/lib/prisma';
@@ -13,9 +13,34 @@ import { withAdminAuth, AdminAuthenticatedRequest } from '@/lib/withAdminAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
 import { extractRegionWithTransparentBackground } from '@/lib/regionMaskImage';
 import { extractFrameAt } from '@/lib/extractFrameFromVideo';
+import { getVideoMetadata } from '@/lib/getVideoMetadata';
 import { uploadClipFile } from '@/lib/r2';
 import { FaceRegionKey, CornerStyle } from '@kidoo/shared/prisma';
 import sharp from 'sharp';
+
+const TARGET_WIDTH = 240;
+const TARGET_HEIGHT = 280;
+
+/**
+ * Applique le même scale+pad que clipWorker (ffmpeg force_original_aspect_ratio=decrease, pad).
+ * Retourne un buffer PNG aux dimensions targetW x targetH.
+ */
+async function scaleFrameToTarget(
+  frameBuffer: Buffer,
+  frameWidth: number,
+  frameHeight: number,
+  targetW: number,
+  targetH: number
+): Promise<Buffer> {
+  return sharp(frameBuffer)
+    .resize(targetW, targetH, {
+      fit: 'contain',
+      position: 'center',
+      background: { r: 0, g: 0, b: 0, alpha: 1 },
+    })
+    .png()
+    .toBuffer();
+}
 
 const REGION_ORDER: FaceRegionKey[] = [
   FaceRegionKey.LEFT_EYE,
@@ -25,6 +50,19 @@ const REGION_ORDER: FaceRegionKey[] = [
 
 function cornerStyleToApi(c: CornerStyle): 'rounded' | 'square' {
   return c === CornerStyle.SQUARE ? 'square' : 'rounded';
+}
+
+/** Expansion des régions (~8% par côté) pour objets animés (balle rebondissante, etc.) */
+const REGION_EXPANSION = 0.08;
+
+function expandRegion(x: number, y: number, w: number, h: number): { x: number; y: number; w: number; h: number } {
+  if (REGION_EXPANSION <= 0) return { x, y, w, h };
+  const m = REGION_EXPANSION;
+  let x2 = Math.max(0, x - m * w);
+  let y2 = Math.max(0, y - m * h);
+  let w2 = Math.min(1 - x2, w * (1 + 2 * m));
+  let h2 = Math.min(1 - y2, h * (1 + 2 * m));
+  return { x: x2, y: y2, w: w2, h: h2 };
 }
 
 export const POST = withAdminAuth(
@@ -41,7 +79,8 @@ export const POST = withAdminAuth(
         return createErrorResponse('CLIP_NOT_FOUND', 404);
       }
 
-      if (!clip.previewUrl) {
+      const effectivePreviewUrl = clip.workingPreviewUrl ?? clip.previewUrl;
+      if (!effectivePreviewUrl) {
         return createErrorResponse('VALIDATION_ERROR', 400, {
           message: 'Le clip n\'a pas de preview (vidéo) pour extraire les frames.',
         });
@@ -74,42 +113,78 @@ export const POST = withAdminAuth(
         list.sort((a, b) => a.id.localeCompare(b.id));
       }
 
-      for (const frameIndex of sortedFrameIndices) {
-        const frameBuffer = await extractFrameAt(clip.previewUrl, frameIndex);
-        const meta = await sharp(frameBuffer).metadata();
-        const frameWidth = meta.width ?? clip.width ?? 240;
-        const frameHeight = meta.height ?? clip.height ?? 280;
+      const targetW = clip.width ?? TARGET_WIDTH;
+      const targetH = clip.height ?? TARGET_HEIGHT;
 
-        const regionShape = (r: { x: number; y: number; w: number; h: number; cornerStyle: CornerStyle }) => ({
-          x: r.x,
-          y: r.y,
-          w: r.w,
-          h: r.h,
-          cornerStyle: cornerStyleToApi(r.cornerStyle),
-        });
+      // Récupérer le FPS réel de la vidéo pour un timing correct (évite décalage si clip.fps ≠ vidéo)
+      let fps = clip.fps ?? 10;
+      try {
+        const meta = await getVideoMetadata(effectivePreviewUrl, fps);
+        if (meta.fps > 0) fps = meta.fps;
+      } catch {
+        // Garder clip.fps en fallback
+      }
+
+      for (const frameIndex of sortedFrameIndices) {
+        const frameBuffer = await extractFrameAt(effectivePreviewUrl, frameIndex, fps);
+        const meta = await sharp(frameBuffer).metadata();
+        const frameWidth = meta.width ?? clip.width ?? TARGET_WIDTH;
+        const frameHeight = meta.height ?? clip.height ?? TARGET_HEIGHT;
+
+        // Scale frame à la résolution cible (même scale+pad que transcodage vidéo) pour alignement parfait
+        const scaledFrameBuffer = await scaleFrameToTarget(
+          frameBuffer,
+          frameWidth,
+          frameHeight,
+          targetW,
+          targetH
+        );
+
+        // Transformer les coords normalisées (0-1 de la vidéo source) vers l'espace de la frame scalée
+        const scale = Math.min(targetW / frameWidth, targetH / frameHeight);
+        const scaledW = frameWidth * scale;
+        const scaledH = frameHeight * scale;
+        const padLeft = (targetW - scaledW) / 2;
+        const padTop = (targetH - scaledH) / 2;
+
+        const regionShapeForScaled = (
+          r: { x: number; y: number; w: number; h: number; cornerStyle: CornerStyle },
+          expand = true
+        ) => {
+          const x = (padLeft + r.x * scaledW) / targetW;
+          const y = (padTop + r.y * scaledH) / targetH;
+          const w = (r.w * scaledW) / targetW;
+          const h = (r.h * scaledH) / targetH;
+          const { x: xe, y: ye, w: we, h: he } = expand ? expandRegion(x, y, w, h) : { x, y, w, h };
+          return { x: xe, y: ye, w: we, h: he, cornerStyle: cornerStyleToApi(r.cornerStyle) };
+        };
+
+        const cacheBust = Date.now();
 
         for (const row of regionsByFrame.get(frameIndex) ?? []) {
           const pngBuffer = await extractRegionWithTransparentBackground(
-            frameBuffer,
-            frameWidth,
-            frameHeight,
-            regionShape(row)
+            scaledFrameBuffer,
+            targetW,
+            targetH,
+            regionShapeForScaled(row)
           );
           const fileName = `regions/frame-${frameIndex}-${row.regionKey}.png`;
-          const imageUrl = await uploadClipFile(clipId, fileName, pngBuffer, 'image/png');
+          const baseUrl = await uploadClipFile(clipId, fileName, pngBuffer, 'image/png');
+          const imageUrl = `${baseUrl.split('?')[0]}?v=${cacheBust}`;
           await prisma.clipFaceRegion.update({ where: { id: row.id }, data: { imageUrl } });
           generatedRegions.push({ frameIndex, regionKey: row.regionKey, imageUrl });
         }
 
         for (const row of artifactsByFrame.get(frameIndex) ?? []) {
           const pngBuffer = await extractRegionWithTransparentBackground(
-            frameBuffer,
-            frameWidth,
-            frameHeight,
-            regionShape(row)
+            scaledFrameBuffer,
+            targetW,
+            targetH,
+            regionShapeForScaled(row)
           );
           const fileName = `artifacts/frame-${frameIndex}-${row.id}.png`;
-          const imageUrl = await uploadClipFile(clipId, fileName, pngBuffer, 'image/png');
+          const baseUrl = await uploadClipFile(clipId, fileName, pngBuffer, 'image/png');
+          const imageUrl = `${baseUrl.split('?')[0]}?v=${cacheBust}`;
           await prisma.clipArtifact.update({ where: { id: row.id }, data: { imageUrl } });
           generatedArtifacts.push({ frameIndex, artifactId: row.id, name: row.name, imageUrl });
         }

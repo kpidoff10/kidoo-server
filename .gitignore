@@ -47,3 +47,5 @@ next-env.d.ts
 # /shared est un submodule Git, donc ne doit pas être ignoré
 # Si vous n'utilisez pas de submodule, décommentez la ligne suivante:
 # /shared
+
+nul

@@ -298,6 +298,53 @@ export async function createCharacterImageUploadUrl(
   return { uploadUrl, path, publicUrl };
 }
 
+// --- Emotion Video files (mjpeg) ---
+
+/**
+ * Chemin R2 pour un fichier emotion-video
+ * Convention: emotion-videos/{emotionVideoId}/{fileName}
+ */
+export function getEmotionVideoFilePath(emotionVideoId: string, fileName: string): string {
+  return `emotion-videos/${emotionVideoId}/${fileName}`;
+}
+
+/**
+ * URL publique pour un fichier emotion-video (si R2_PUBLIC_URL configuré)
+ */
+export function getEmotionVideoFilePublicUrl(path: string): string {
+  if (r2PublicUrl) {
+    return `${r2PublicUrl.replace(/\/$/, '')}/${path}`;
+  }
+  throw new Error('R2_PUBLIC_URL requis pour les emotion-videos (accès public)');
+}
+
+/**
+ * Upload un buffer vers R2 pour une emotion-video (mjpeg).
+ * Retourne l'URL publique du fichier.
+ */
+export async function uploadEmotionVideoFile(
+  emotionVideoId: string,
+  fileName: string,
+  body: Buffer,
+  contentType: string = 'application/octet-stream'
+): Promise<string> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  const path = getEmotionVideoFilePath(emotionVideoId, fileName);
+  const publicUrl = getEmotionVideoFilePublicUrl(path);
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: MULTIMEDIA_BUCKET,
+      Key: path,
+      Body: body,
+      ContentType: contentType,
+      ContentLength: body.length,
+    })
+  );
+  return publicUrl;
+}
+
 // --- Clip files (bin + preview) ---
 
 /**
