@@ -122,29 +122,31 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
             const ready = readyCount(emotionClips);
             return (
               <AccordionItem key={emotion.id} value={emotion.id} className="px-4">
-                <AccordionTrigger className="hover:no-underline [&[data-state=open]>svg]:rotate-180">
-                  <div className="flex flex-1 flex-wrap items-center justify-between gap-3 py-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="font-mono font-medium text-foreground">{emotion.key}</span>
-                      <span className="text-muted-foreground">{emotion.label}</span>
-                      <span className="text-sm text-muted-foreground">
-                        ({ready} clip{ready !== 1 ? 's' : ''} READY)
-                      </span>
-                    </div>
-                    <div className="pr-2">
-                      <EmotionRowButtons
-                        emotion={emotion}
-                        editingId={editingId}
-                        setEditingId={setEditingId}
-                        editLabel={editLabel}
-                        setEditLabel={setEditLabel}
-                        editPromptCustom={editPromptCustom}
-                        setEditPromptCustom={setEditPromptCustom}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+                  <div className="min-w-0 flex-1">
+                    <AccordionTrigger className="w-full hover:no-underline [&[data-state=open]>svg]:rotate-180 [&>svg]:shrink-0">
+                      <div className="flex flex-wrap items-center gap-3 py-1">
+                        <span className="font-mono font-medium text-foreground">{emotion.key}</span>
+                        <span className="text-muted-foreground">{emotion.label}</span>
+                        <span className="text-sm text-muted-foreground">
+                          ({ready} clip{ready !== 1 ? 's' : ''} READY)
+                        </span>
+                      </div>
+                    </AccordionTrigger>
                   </div>
-                </AccordionTrigger>
+                  <div className="shrink-0 pr-2" onClick={(e) => e.stopPropagation()}>
+                    <EmotionRowButtons
+                      emotion={emotion}
+                      editingId={editingId}
+                      setEditingId={setEditingId}
+                      editLabel={editLabel}
+                      setEditLabel={setEditLabel}
+                      editPromptCustom={editPromptCustom}
+                      setEditPromptCustom={setEditPromptCustom}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
                 <AccordionContent>
                   <div className="flex flex-col gap-3">
                     {emotion.promptCustom && (
@@ -223,7 +225,7 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                                   : 'Convertir en .bin'}
                               </Button>
                             )}
-                            <Link href={`/admin/clips/${clip.id}`} className="text-primary hover:underline">
+                            <Link href={`/admin/personnages/${characterId}/clips/${clip.id}`} className="text-primary hover:underline">
                               Détail
                             </Link>
                             {convertClipMutation.isError && convertClipMutation.variables === clip.id && (

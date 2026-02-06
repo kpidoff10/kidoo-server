@@ -109,6 +109,7 @@ model Emotion {
 
   clips            Clip[]
   deviceClipCaches DeviceClipCache[]
+  emotionVideos    EmotionVideo[]
 
   @@map("emotions")
 }
@@ -142,6 +143,7 @@ model Clip {
   faceRegions     ClipFaceRegion[]
   artifacts       ClipArtifact[]
   deviceClipCaches DeviceClipCache[]
+  emotionVideos   EmotionVideo[]    // Vidéos composées utilisant ce clip comme source
 
   @@index([characterId])
   @@index([emotionId])
@@ -189,6 +191,43 @@ model ClipFaceRegion {
   @@unique([clipId, regionKey, frameIndex])
   @@index([clipId])
   @@map("clip_face_regions")
+}
+
+// Vidéo composée à partir de frames de clips existants (timeline custom)
+model EmotionVideo {
+  id          String     @id @default(uuid())
+  emotionId   String
+  sourceClipId String    // Clip source dont on utilise les frames
+  name        String?    // Nom optionnel (ex: "Gochi dort v2")
+
+  // Configuration vidéo
+  fps         Int        @default(10)
+  width       Int        @default(240)
+  height      Int        @default(280)
+
+  // Timelines de composition (3 phases: intro, loop, exit)
+  introTimeline Json       // Array<TimelineFrame> - Phase d'introduction (optionnelle)
+  loopTimeline  Json       // Array<TimelineFrame> - Phase de boucle (OBLIGATOIRE, min 1 frame)
+  exitTimeline  Json       // Array<TimelineFrame> - Phase de sortie (optionnelle)
+
+  // Résultat généré
+  status      ClipStatus @default(DRAFT) // DRAFT, GENERATING, READY, FAILED
+  binUrl      String?    // URL du .bin généré (R2)
+  sha256      String?
+  sizeBytes   Int?
+  totalFrames Int?       // Nombre total de frames (somme des 3 timelines)
+  durationS   Float?     // Durée calculée (max 6s)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  emotion     Emotion    @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+  sourceClip  Clip       @relation(fields: [sourceClipId], references: [id], onDelete: Cascade)
+
+  @@index([emotionId])
+  @@index([sourceClipId])
+  @@index([status])
+  @@map("emotion_videos")
 }
 
 model EmotionDevice {

@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCharacter, useUpdateCharacter, useDeleteCharacter } from '../../hooks/useCharacters';
+import { AdminContent } from '@/components/ui/admin-content';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -113,7 +114,7 @@ export default function AdminPersonnageDetailPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-10">
+      <AdminContent size="narrow">
         <p className="text-destructive">Erreur : {error.message}</p>
         <Link
           href="/admin/personnages"
@@ -121,12 +122,12 @@ export default function AdminPersonnageDetailPage() {
         >
           Retour aux personnages
         </Link>
-      </div>
+      </AdminContent>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
+    <AdminContent size="narrow">
       <BackLink />
 
       <h1 className="text-2xl font-bold text-foreground">{character.name ?? 'Sans nom'}</h1>
@@ -135,6 +136,6 @@ export default function AdminPersonnageDetailPage() {
       </p>
 
       <CharacterEditForm key={character.id} character={character} id={id} />
-    </div>
+    </AdminContent>
   );
 }

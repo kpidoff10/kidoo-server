@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClipFaceRegionsEditor } from '../clip-face-regions-editor';
 import { ClipTrimEditor } from '../clip-trim-editor';
 import { ClipVideoCreation } from '../clip-video-creation';
-import type { CharacterClipDetail, FaceRegions, ArtifactRegion } from '../../../../lib/charactersApi';
+import type { CharacterClipDetail, FaceRegions, ArtifactRegion } from '../../../../../../lib/charactersApi';
 import { isVideoUrl } from './components/utils';
 import { NoPreviewMessage } from './components/NoPreviewMessage';
 

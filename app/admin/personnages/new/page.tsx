@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCreateCharacter } from '../../hooks/useCharacters';
 import { charactersApi } from '../../lib/charactersApi';
+import { AdminContent } from '@/components/ui/admin-content';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BackLink, CharacterForm } from '../components';
@@ -40,7 +41,7 @@ export default function AdminPersonnageNewPage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
+    <AdminContent size="narrow">
       <BackLink />
 
       <h1 className="text-2xl font-bold text-foreground">Nouveau personnage</h1>
@@ -70,6 +71,6 @@ export default function AdminPersonnageNewPage() {
           </CharacterForm>
         </CardContent>
       </Card>
-    </div>
+    </AdminContent>
   );
 }

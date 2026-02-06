@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useClip, useUpdateClip, useTrimClip, useGenerateRegionImages } from '../../hooks/useCharacters';
+import { useClip, useUpdateClip, useTrimClip, useGenerateRegionImages } from '../../../../hooks/useCharacters';
 import { AdminContent } from '@/components/ui/admin-content';
 import {
   ClipDetailBreadcrumb,
@@ -13,7 +13,7 @@ import {
 
 export default function AdminClipDetailPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = params.clipId as string;
   const { data: clip, isLoading, error } = useClip(id);
   const updateClipMutation = useUpdateClip(id);
   const trimClipMutation = useTrimClip(id);

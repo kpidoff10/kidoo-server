@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { KIDOO_MODELS } from '@kidoo/shared';
+import { AdminContent } from '@/components/ui/admin-content';
 
 export default function AdminFirmwarePage() {
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <AdminContent>
       <h1 className="text-2xl font-bold text-foreground">Firmware</h1>
       <p className="mt-2 text-muted-foreground">
         Sélectionnez un modèle pour gérer son firmware.
@@ -24,6 +25,6 @@ export default function AdminFirmwarePage() {
           </Link>
         ))}
       </div>
-    </div>
+    </AdminContent>
   );
 }

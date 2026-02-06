@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCharacters } from '../hooks/useCharacters';
+import { AdminContent } from '@/components/ui/admin-content';
 import { Button } from '@/components/ui/button';
 import {
   CharacterCard,
@@ -22,7 +23,7 @@ export default function AdminPersonnagesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <AdminContent>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Personnages</h1>
@@ -44,6 +45,6 @@ export default function AdminPersonnagesPage() {
           ))}
         </div>
       )}
-    </div>
+    </AdminContent>
   );
 }
