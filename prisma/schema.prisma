@@ -139,6 +139,7 @@ model Clip {
   loopStartFrame   Int?      // Frame (0-based) début de boucle
   loopEndFrame    Int?      // Frame (0-based) fin de boucle (si null = dernière frame)
   weight          Int       @default(100) // Poids pour sélection aléatoire
+  trigger         String?   @default("manual") // Déclencheur automatique (hunger_low, eating_finished, etc.)
   tags           String[]  @default([])  // Tags libres (Postgres)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

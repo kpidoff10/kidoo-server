@@ -224,6 +224,7 @@ export const PATCH = withAdminAuth(
       const body = (await request.json()) as {
         loopStartFrame?: number | null;
         loopEndFrame?: number | null;
+        trigger?: string | null;
         faceRegions?: FaceRegionsPayload | null;
         /** Régions par frame (clé = index de frame en string) */
         faceRegionsByFrame?: Record<string, FaceRegionsPayload> | null;
@@ -239,12 +240,16 @@ export const PATCH = withAdminAuth(
       const updateData: {
         loopStartFrame?: number | null;
         loopEndFrame?: number | null;
+        trigger?: string | null;
       } = {};
       if (body.loopStartFrame !== undefined) {
         updateData.loopStartFrame = body.loopStartFrame === null ? null : body.loopStartFrame;
       }
       if (body.loopEndFrame !== undefined) {
         updateData.loopEndFrame = body.loopEndFrame === null ? null : body.loopEndFrame;
+      }
+      if (body.trigger !== undefined) {
+        updateData.trigger = body.trigger === null ? 'manual' : body.trigger;
       }
 
       const updated = await prisma.$transaction(async (tx) => {

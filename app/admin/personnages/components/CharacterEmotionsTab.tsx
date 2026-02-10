@@ -130,13 +130,31 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
   const readyCount = (arr: CharacterClip[] | undefined) =>
     arr?.filter((c) => c.status === 'READY').length ?? 0;
 
+  const handleExportConfig = () => {
+    const url = `/api/admin/characters/${characterId}/export-config`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="space-y-6">
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-foreground">Émotions de ce personnage</h3>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Clés utilisées par le device (HOT, OK, COLD, BRUSH, SLEEP…). Dépliez une émotion pour voir ses clips.
-        </p>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="flex-1">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">Émotions de ce personnage</h3>
+            <p className="text-sm text-muted-foreground">
+              Clés utilisées par le device (HOT, OK, COLD, BRUSH, SLEEP…). Dépliez une émotion pour voir ses clips.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportConfig}
+            title="Exporte un fichier config.json avec toutes les émotions prêtes (MJPEG + index générés) pour copier sur l'ESP32."
+            className="shrink-0"
+          >
+            📥 Exporter config.json (ESP32)
+          </Button>
+        </div>
         <form onSubmit={handleCreate} className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-muted/30 p-4">
           <div className="min-w-[120px] flex-1 space-y-2">
             <Label htmlFor="emotion-new-key">Clé</Label>

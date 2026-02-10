@@ -9,6 +9,7 @@ import {
   ClipDetailInfo,
   ClipDetailActions,
   ClipDetailPreview,
+  ClipTriggerEdit,
 } from './components';
 
 export default function AdminClipDetailPage() {
@@ -51,6 +52,11 @@ export default function AdminClipDetailPage() {
 
       <div className="mt-6 space-y-4">
         <ClipDetailInfo clip={clip} />
+        <ClipTriggerEdit
+          clip={clip}
+          onSave={(data) => updateClipMutation.mutate(data)}
+          isSaving={updateClipMutation.isPending}
+        />
         <ClipDetailPreview
           clip={clip}
           onSaveRegions={(data) => updateClipMutation.mutate(data)}
