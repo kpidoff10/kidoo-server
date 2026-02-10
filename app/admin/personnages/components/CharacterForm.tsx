@@ -48,6 +48,7 @@ export function CharacterForm({
       : {
           name: null,
           defaultImageUrl: null,
+          characterContext: null,
           sex: 'FEMALE',
           personality: 'BASIC',
           imageWidth: 240,
@@ -59,6 +60,7 @@ export function CharacterForm({
     defaultValues: {
       name: defaultValues.name ?? '',
       defaultImageUrl: defaultValues.defaultImageUrl ?? '',
+      characterContext: defaultValues.characterContext ?? '',
       sex: defaultValues.sex,
       personality: defaultValues.personality,
       imageWidth: defaultValues.imageWidth ?? 240,

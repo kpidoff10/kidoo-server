@@ -378,3 +378,27 @@ export const PATCH = withAdminAuth(
     }
   }
 );
+
+export const DELETE = withAdminAuth(
+  async (_request: AdminAuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => {
+    try {
+      const { id } = await params;
+
+      const existing = await prisma.clip.findUnique({ where: { id } });
+      if (!existing) {
+        return createErrorResponse('CLIP_NOT_FOUND', 404, {
+          message: 'Clip introuvable',
+        });
+      }
+
+      await prisma.clip.delete({ where: { id } });
+
+      return createSuccessResponse({ id }, { message: 'Clip supprimé' });
+    } catch (error) {
+      console.error('Erreur lors de la suppression du clip:', error);
+      return createErrorResponse('INTERNAL_ERROR', 500, {
+        details: error instanceof Error ? error.message : undefined,
+      });
+    }
+  }
+);

@@ -8,6 +8,7 @@ export interface Character {
   id: string;
   name: string | null;
   defaultImageUrl: string | null;
+  characterContext: string | null;
   sex: string;
   personality: string;
   imageWidth: number;
@@ -162,12 +163,12 @@ export const charactersApi = {
     }),
 
   /** Générer un clip via xAI (Grok Imagine) pour une émotion */
-  generateClip: (characterId: string, emotionKey: string) =>
+  generateClip: (characterId: string, emotionKey: string, variantPrompt?: string | null) =>
     api<{ clipId: string; jobId?: string; status: string; prompt: string }>(
       '/api/admin/clips/generate',
       {
         method: 'POST',
-        body: JSON.stringify({ characterId, emotionKey }),
+        body: JSON.stringify({ characterId, emotionKey, variantPrompt }),
       }
     ),
 
@@ -205,6 +206,13 @@ export const charactersApi = {
     api<{ clipId: string; status: string; videoUrl?: string; jobStatus?: string; message?: string }>(
       `/api/admin/clips/${clipId}/sync-status`,
       { method: 'POST' }
+    ),
+
+  /** Supprimer un clip */
+  deleteClip: (clipId: string) =>
+    api<{ id: string }>(
+      `/api/admin/clips/${clipId}`,
+      { method: 'DELETE' }
     ),
 
   /** Découper la vidéo preview (début/fin en secondes), enregistre le nouveau MP4 de travail sur R2 */
@@ -271,27 +279,49 @@ export const charactersApi = {
     characterId: string,
     file: File
   ): Promise<{ success: true; publicUrl: string } | { success: false; error: string }> => {
+    // Normaliser le Content-Type (doit correspondre à celui utilisé pour signer)
+    const contentType = file.type || 'image/jpeg';
+
     const urlRes = await charactersApi.getUploadImageUrl(characterId, {
       fileName: file.name,
       fileSize: file.size,
-      contentType: file.type || undefined,
+      contentType: contentType,
     });
     if (!urlRes.success) return { success: false, error: urlRes.error };
 
     const { uploadUrl, publicUrl } = urlRes.data;
 
+    console.log('[Upload R2] Début upload:', {
+      fileName: file.name,
+      fileSize: file.size,
+      contentType,
+      uploadUrl: uploadUrl.substring(0, 100) + '...',
+    });
+
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+      // IMPORTANT: Utiliser EXACTEMENT le même Content-Type que celui utilisé pour signer l'URL
+      xhr.setRequestHeader('Content-Type', contentType);
+
       xhr.addEventListener('load', () => {
+        console.log('[Upload R2] Load event:', { status: xhr.status, statusText: xhr.statusText });
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve({ success: true, publicUrl });
         } else {
+          console.error(`[Upload R2] Échec ${xhr.status}:`, xhr.responseText);
           resolve({ success: false, error: `Upload échoué: ${xhr.status}` });
         }
       });
-      xhr.addEventListener('error', () => resolve({ success: false, error: 'Erreur réseau' }));
+      xhr.addEventListener('error', (e) => {
+        console.error('[Upload R2] Erreur réseau (probablement CORS):', {
+          event: e,
+          readyState: xhr.readyState,
+          status: xhr.status,
+        });
+        resolve({ success: false, error: 'Erreur réseau (vérifiez les règles CORS du bucket R2)' });
+      });
       xhr.send(file);
     });
   },

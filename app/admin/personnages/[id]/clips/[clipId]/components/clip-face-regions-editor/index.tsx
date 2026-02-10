@@ -2,6 +2,12 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type {
   CharacterClipDetail,
   FaceRegion,
@@ -591,7 +597,7 @@ export function ClipFaceRegionsEditor({
     onSave?.({ faceRegionsByFrame: byFrameStr, artifactsByFrame: artifactsStr });
   }, [onSave, regionsByFrame, artifactsByFrame]);
 
-  const handleGenerateRegionImages = useCallback(async () => {
+  const handleGenerateRegionImages = useCallback(async (removeBackground = false) => {
     if (isImage) {
       onGenerateRegionImages?.();
       return;
@@ -623,18 +629,30 @@ export function ClipFaceRegionsEditor({
         artifactsByFrameStr
       );
       for (const [key, blob] of blobs) {
+        let blobToUpload = blob;
+        if (removeBackground) {
+          const url = URL.createObjectURL(blob);
+          try {
+            const { removeBackground: removeBg } = await import('@imgly/background-removal');
+            blobToUpload = await removeBg(url);
+          } catch (e) {
+            console.warn('Background removal failed for', key, e);
+          } finally {
+            URL.revokeObjectURL(url);
+          }
+        }
         const parts = key.split('-');
         const type = parts[0];
         const frameIndex = parseInt(parts[1] ?? '0', 10);
         const subKey = parts.slice(2).join('-');
         if (type === 'region' && subKey) {
-          await charactersApi.uploadRegionImage(clip.id, blob, {
+          await charactersApi.uploadRegionImage(clip.id, blobToUpload, {
             type: 'region',
             frameIndex,
             regionKey: subKey,
           });
         } else if (type === 'artifact' && subKey) {
-          await charactersApi.uploadRegionImage(clip.id, blob, {
+          await charactersApi.uploadRegionImage(clip.id, blobToUpload, {
             type: 'artifact',
             frameIndex,
             artifactId: subKey,
@@ -813,15 +831,29 @@ export function ClipFaceRegionsEditor({
           </Button>
         )}
         {(onGenerateRegionImages || onRegionImagesComplete) && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleGenerateRegionImages}
-            disabled={isGeneratingAny || isSaving}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isGeneratingAny || isSaving}
             title={isImage ? 'Image: génération serveur' : 'Vidéo: extraction client (même rendu que l’aperçu)'}
           >
             {isGeneratingAny ? 'Génération…' : 'Générer les images des régions'}
-          </Button>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleGenerateRegionImages(false)}>
+                Avec arrière-plan
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleGenerateRegionImages(true)} disabled={isImage} title={isImage ? 'Vidéo uniquement' : undefined}>
+                Sans arrière-plan (plus lent)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>

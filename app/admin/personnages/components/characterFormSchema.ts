@@ -14,6 +14,11 @@ export const characterFormSchema = z.object({
     .nullable()
     .transform((v) => (v === '' || v === undefined ? null : v)),
   defaultImageUrl: z.string().url().optional().nullable().or(z.literal('')),
+  characterContext: z
+    .union([z.string().min(1).max(2000), z.literal('')])
+    .optional()
+    .nullable()
+    .transform((v) => (v === '' || v === undefined ? null : v)),
   sex: z.nativeEnum(CharacterSex),
   personality: z.nativeEnum(CharacterPersonality),
   imageWidth: z.coerce.number().int().min(1).max(4096).default(240),

@@ -17,6 +17,7 @@ export interface EmotionVideo {
   exitTimeline: TimelineFrame[];
   status: 'DRAFT' | 'GENERATING' | 'READY' | 'FAILED' | 'DISABLED';
   binUrl: string | null;
+  idxUrl: string | null;  // URL du fichier .idx
   sha256: string | null;
   sizeBytes: number | null;
   totalFrames: number | null;
@@ -151,8 +152,17 @@ export function useUpdateEmotionVideo(id: string, clipId: string) {
       return res.data;
     },
     onSuccess: (data) => {
+      // Mise à jour optimiste : mettre à jour le cache directement sans refetch
       queryClient.setQueryData(EMOTION_VIDEO_KEYS.detail(id), data);
-      queryClient.invalidateQueries({ queryKey: EMOTION_VIDEO_KEYS.byClip(clipId) });
+
+      // Mettre à jour aussi la liste byClip pour refléter les changements
+      queryClient.setQueryData(
+        EMOTION_VIDEO_KEYS.byClip(clipId),
+        (old: EmotionVideo[] | undefined) => {
+          if (!old) return [data];
+          return old.map((ev) => (ev.id === id ? data : ev));
+        }
+      );
     },
   });
 }

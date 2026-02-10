@@ -61,9 +61,18 @@ export function getAspectRatioFromCharacter(width: number, height: number): stri
 export function buildPromptForEmotion(
   emotionKey: string,
   emotionLabel: string,
-  customPrompt?: string | null
+  characterContext?: string | null,
+  customPrompt?: string | null,
+  variantPrompt?: string | null
 ): string {
-  const base =
+  let base = '';
+
+  // Si un contexte de personnage est fourni, l'ajouter en préambule
+  if (characterContext?.trim()) {
+    base += `Description du personnage : ${characterContext.trim()}. `;
+  }
+
+  base +=
     `Animation de ${XAI_VIDEO_DURATION_SECONDS} seconde${XAI_VIDEO_DURATION_SECONDS > 1 ? 's' : ''} exprimant uniquement l'émotion "${emotionLabel}" (${emotionKey}). ` +
     `Pas de bras, pas de corps : on veut vraiment uniquement le visage, comme sur l'image de base. Cadrage serré sur le visage. ` +
     `Le personnage ne doit pas parler : pas de mouvements de bouche pour la parole, pas de dialogue. On veut seulement l'émotion (expression du visage, regard), pas la parole. ` +
@@ -74,8 +83,13 @@ export function buildPromptForEmotion(
     `Le personnage doit rester fidèle à l'image de référence. `;
 
   if (customPrompt?.trim()) {
-    return `${base} Personnalisation pour cette émotion : ${customPrompt.trim()}.`;
+    base += ` Personnalisation pour cette émotion : ${customPrompt.trim()}.`;
   }
+
+  if (variantPrompt?.trim()) {
+    base += ` Détails pour cette variante : ${variantPrompt.trim()}.`;
+  }
+
   return base;
 }
 

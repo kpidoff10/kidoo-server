@@ -3,10 +3,19 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useEmotions, useCreateEmotion, useUpdateEmotion, useDeleteEmotion } from '../../hooks/useEmotions';
-import { useCharacterClips, useGenerateClip, useSyncClipStatus, useUploadClip } from '../../hooks/useCharacters';
+import { useCharacterClips, useGenerateClip, useSyncClipStatus, useUploadClip, useDeleteClip } from '../../hooks/useCharacters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Accordion,
   AccordionContent,
@@ -27,6 +36,7 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
   const generateClipMutation = useGenerateClip(characterId);
   const syncClipMutation = useSyncClipStatus(characterId);
   const uploadClipMutation = useUploadClip(characterId);
+  const deleteClipMutation = useDeleteClip(characterId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingEmotionKeyRef = useRef<string | null>(null);
   const [newKey, setNewKey] = useState('');
@@ -35,6 +45,9 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editPromptCustom, setEditPromptCustom] = useState('');
+  const [variantDialogOpen, setVariantDialogOpen] = useState(false);
+  const [variantPrompt, setVariantPrompt] = useState('');
+  const [pendingEmotionKey, setPendingEmotionKey] = useState<string | null>(null);
 
   const isLoading = emotionsLoading || clipsLoading;
 
@@ -68,6 +81,36 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
     if (!file || !emotionKey) return;
     try {
       await uploadClipMutation.mutateAsync({ emotionKey, file });
+    } catch {
+      // Error shown via mutation
+    }
+  };
+
+  const handleOpenVariantDialog = (emotionKey: string) => {
+    setPendingEmotionKey(emotionKey);
+    setVariantPrompt('');
+    setVariantDialogOpen(true);
+  };
+
+  const handleGenerateVariant = async () => {
+    if (!pendingEmotionKey) return;
+    try {
+      await generateClipMutation.mutateAsync({
+        emotionKey: pendingEmotionKey,
+        variantPrompt: variantPrompt.trim() || null,
+      });
+      setVariantDialogOpen(false);
+      setVariantPrompt('');
+      setPendingEmotionKey(null);
+    } catch {
+      // Error shown via mutation
+    }
+  };
+
+  const handleDeleteClip = async (clipId: string, emotionKey: string) => {
+    if (!confirm('Supprimer ce clip ? Cette action est irréversible.')) return;
+    try {
+      await deleteClipMutation.mutateAsync(clipId);
     } catch {
       // Error shown via mutation
     }
@@ -188,10 +231,10 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                         size="sm"
                         variant="outline"
                         disabled={generateClipMutation.isPending}
-                        onClick={() => generateClipMutation.mutate(emotion.key)}
-                        title="Génère un clip 3s via xAI (Grok Imagine) pour les tests. Dernière frame = première frame pour la boucle."
+                        onClick={() => handleOpenVariantDialog(emotion.key)}
+                        title="Génère un clip 3s via xAI (Grok Imagine) avec possibilité d'ajouter un prompt personnalisé pour cette variante."
                       >
-                        {generateClipMutation.isPending && generateClipMutation.variables === emotion.key
+                        {generateClipMutation.isPending && generateClipMutation.variables?.emotionKey === emotion.key
                           ? 'Génération…'
                           : 'Générer une variante (IA)'}
                       </Button>
@@ -255,8 +298,18 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                             <Link href={`/admin/personnages/${characterId}/clips/${clip.id}`} className="text-primary hover:underline">
                               Détail
                             </Link>
+                            <button
+                              onClick={() => handleDeleteClip(clip.id, emotion.key)}
+                              disabled={deleteClipMutation.isPending && deleteClipMutation.variables === clip.id}
+                              className="text-destructive hover:underline disabled:opacity-50"
+                            >
+                              {deleteClipMutation.isPending && deleteClipMutation.variables === clip.id ? 'Suppression…' : 'Supprimer'}
+                            </button>
                             {syncClipMutation.isError && syncClipMutation.variables === clip.id && (
                               <span className="text-destructive">{syncClipMutation.error?.message}</span>
+                            )}
+                            {deleteClipMutation.isError && deleteClipMutation.variables === clip.id && (
+                              <span className="text-sm text-destructive">{deleteClipMutation.error?.message}</span>
                             )}
                             {syncClipMutation.isSuccess &&
                               syncClipMutation.variables === clip.id &&
@@ -278,6 +331,41 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
           })}
         </Accordion>
       )}
+
+      <Dialog open={variantDialogOpen} onOpenChange={setVariantDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Générer une variante avec prompt personnalisé</DialogTitle>
+            <DialogDescription>
+              Ajoutez un prompt personnalisé pour cette variante (optionnel). Ce prompt sera ajouté au prompt de base de l'émotion.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="variant-prompt">Prompt personnalisé (optionnel)</Label>
+              <Textarea
+                id="variant-prompt"
+                value={variantPrompt}
+                onChange={(e) => setVariantPrompt(e.target.value)}
+                placeholder="ex: ajouter des étoiles autour du visage, regard vers la gauche..."
+                rows={4}
+                maxLength={2000}
+              />
+              <p className="text-xs text-muted-foreground">
+                Décrivez des détails spécifiques pour cette variante : objets, direction du regard, effets visuels...
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVariantDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleGenerateVariant} disabled={generateClipMutation.isPending}>
+              {generateClipMutation.isPending ? 'Génération…' : 'Générer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

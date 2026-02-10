@@ -31,11 +31,18 @@ export const POST = withAdminAuth(
       }
 
       const fps = clip.fps ?? 10;
-      const frames = clip.frames ?? (clip.durationS ? Math.ceil(clip.durationS * fps) : 30);
+      const totalFrames = clip.frames ?? (clip.durationS ? Math.ceil(clip.durationS * fps) : 30);
+      const loopStart = clip.loopStartFrame ?? 0;
+      const loopEnd = clip.loopEndFrame ?? totalFrames - 1;
+      const loopFrameCount = Math.max(1, loopEnd - loopStart + 1);
+      const startS = loopStart / fps;
+      const durationS = loopFrameCount / fps;
+
       const transcodeOpts = {
         fps,
-        maxFrames: frames + 20,
-        maxDurationS: clip.durationS ? clip.durationS + 1 : undefined,
+        maxFrames: loopFrameCount + 5,
+        maxDurationS: durationS + 0.5,
+        startS: startS > 0 ? startS : undefined,
         width: clip.width ?? 240,
         height: clip.height ?? 280,
       };
@@ -58,7 +65,7 @@ export const POST = withAdminAuth(
           width: clip.width ?? 240,
           height: clip.height ?? 280,
           fps,
-          frames,
+          frames: loopFrameCount,
         },
       });
 

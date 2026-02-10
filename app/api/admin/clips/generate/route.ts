@@ -19,6 +19,7 @@ import { z } from 'zod';
 const bodySchema = z.object({
   characterId: z.string().uuid(),
   emotionKey: z.string().min(1),
+  variantPrompt: z.string().max(2000).optional().nullable(),
 });
 
 export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => {
@@ -33,7 +34,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       });
     }
 
-    const { characterId, emotionKey } = parsed.data;
+    const { characterId, emotionKey, variantPrompt } = parsed.data;
 
     const character = await prisma.character.findUnique({ where: { id: characterId } });
     if (!character) {
@@ -47,7 +48,13 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       });
     }
 
-    const prompt = buildPromptForEmotion(emotion.key, emotion.label, emotion.promptCustom);
+    const prompt = buildPromptForEmotion(
+      emotion.key,
+      emotion.label,
+      character.characterContext,
+      emotion.promptCustom,
+      variantPrompt ?? undefined
+    );
     const imageUrl = character.defaultImageUrl ?? null;
 
     const fps = CLIP_DEFAULT_FPS;
@@ -57,6 +64,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
         emotionId: emotion.id,
         status: 'GENERATING',
         prompt,
+        variantPrompt: variantPrompt ?? null,
         modelName: 'grok-imagine-video',
         durationS: XAI_VIDEO_DURATION_SECONDS,
         width: character.imageWidth,

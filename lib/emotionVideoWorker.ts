@@ -16,15 +16,18 @@ import type { TranscodeOptions } from './clipWorker';
 import { uploadEmotionVideoFile } from './r2';
 import type { TimelineFrame, TimelineRegion, TimelineArtifact } from '@/types/emotion-video';
 
-const DEFAULT_WIDTH = 240;
-const DEFAULT_HEIGHT = 280;
-const JPEG_QUALITY = 93;
+// Dimensions landscape pour ESP32 (après rotation 90°)
+// +125% pour agrandir l'image : 280*2.25=630, 240*2.25=540
+const DEFAULT_WIDTH = 630;
+const DEFAULT_HEIGHT = 540;
+const JPEG_QUALITY = 100;  // Qualité maximale pour éliminer les artefacts de compression
 // Seuil RGB : tout pixel dont R, G et B sont en dessous est forcé à noir pur (0,0,0).
-// Élimine le fond gris foncé de la vidéo source dans les rectangles de régions.
-const BLACK_THRESHOLD = 25;
+// Réduit de 25 à 5 pour éviter les halos autour des contours blancs (yeux)
+const BLACK_THRESHOLD = 5;
 
 export interface EmotionVideoWorkerResult {
   binUrl: string;
+  idxUrl: string;  // URL du fichier .idx pour l'ESP32
   sha256: string;
   sizeBytes: number;
   totalFrames: number;
@@ -63,6 +66,58 @@ export function parseJpegFrames(mjpegBuffer: Buffer): Buffer[] {
   }
 
   return frames;
+}
+
+/**
+ * Génère un fichier .idx contenant les offsets et tailles de chaque frame JPEG
+ * dans un buffer MJPEG. Format binaire little-endian :
+ * - [uint32] nombre de frames
+ * - Pour chaque frame : [uint32] offset, [uint32] size
+ */
+export function generateFrameIndex(mjpegBuffer: Buffer): Buffer {
+  interface FrameOffset {
+    offset: number;
+    size: number;
+  }
+
+  const frameOffsets: FrameOffset[] = [];
+  let i = 0;
+
+  while (i < mjpegBuffer.length - 1) {
+    // Chercher SOI (0xFF 0xD8)
+    if (mjpegBuffer[i] === 0xff && mjpegBuffer[i + 1] === 0xd8) {
+      const start = i;
+      i += 2;
+      // Chercher EOI (0xFF 0xD9)
+      while (i < mjpegBuffer.length - 1) {
+        if (mjpegBuffer[i] === 0xff && mjpegBuffer[i + 1] === 0xd9) {
+          const end = i + 2;
+          frameOffsets.push({ offset: start, size: end - start });
+          i = end;
+          break;
+        }
+        i++;
+      }
+    } else {
+      i++;
+    }
+  }
+
+  // Créer le buffer d'index : 4 bytes pour le count + 8 bytes par frame
+  const indexBuffer = Buffer.alloc(4 + frameOffsets.length * 8);
+
+  // Écrire le nombre de frames (uint32 little-endian)
+  indexBuffer.writeUInt32LE(frameOffsets.length, 0);
+
+  // Écrire chaque offset et size
+  let pos = 4;
+  for (const frame of frameOffsets) {
+    indexBuffer.writeUInt32LE(frame.offset, pos);
+    indexBuffer.writeUInt32LE(frame.size, pos + 4);
+    pos += 8;
+  }
+
+  return indexBuffer;
 }
 
 /**
@@ -131,19 +186,8 @@ async function compositeFrameToJpeg(
 
   const ch = info.channels; // doit être 3 après removeAlpha()
 
-  // Forcer les pixels quasi-noirs à noir pur (0,0,0)
-  // Élimine le fond gris foncé de la vidéo source visible dans les régions
-  for (let i = 0; i < composited.length; i += ch) {
-    if (
-      composited[i] < BLACK_THRESHOLD &&
-      composited[i + 1] < BLACK_THRESHOLD &&
-      composited[i + 2] < BLACK_THRESHOLD
-    ) {
-      composited[i] = 0;
-      composited[i + 1] = 0;
-      composited[i + 2] = 0;
-    }
-  }
+  // Note: Le forçage des noirs a été supprimé car il créait des halos autour des contours blancs.
+  // Sharp gère maintenant la composition naturellement avec antialiasing préservé.
 
   // Encoder en JPEG
   return sharp(composited, {
@@ -291,23 +335,34 @@ export async function generateEmotionVideoMjpeg(
     // 5. Concaténer toutes les frames JPEG en un flux MJPEG
     const mjpegBuffer = Buffer.concat(outputFrames);
 
-    // 6. Calculer SHA256 et taille
+    // 6. Générer le fichier d'index .idx
+    const indexBuffer = generateFrameIndex(mjpegBuffer);
+
+    // 7. Calculer SHA256 et taille
     const sha256 = createHash('sha256').update(mjpegBuffer).digest('hex');
     const sizeBytes = mjpegBuffer.length;
 
-    // 7. Upload sur R2
-    const binUrl = await uploadEmotionVideoFile(
-      emotionVideoId,
-      'video.mjpeg',
-      mjpegBuffer,
-      'video/x-motion-jpeg'
-    );
+    // 8. Upload sur R2 (vidéo + index)
+    const [binUrl, idxUrl] = await Promise.all([
+      uploadEmotionVideoFile(
+        emotionVideoId,
+        'video.mjpeg',
+        mjpegBuffer,
+        'video/x-motion-jpeg'
+      ),
+      uploadEmotionVideoFile(
+        emotionVideoId,
+        'video.idx',
+        indexBuffer,
+        'application/octet-stream'
+      ),
+    ]);
 
-    // 8. Calculer la durée
+    // 9. Calculer la durée
     const fps = emotionVideo.fps || 10;
     const durationS = totalFrames / fps;
 
-    return { binUrl, sha256, sizeBytes, totalFrames, durationS };
+    return { binUrl, idxUrl, sha256, sizeBytes, totalFrames, durationS };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { error: message };

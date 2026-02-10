@@ -48,12 +48,13 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       });
     }
 
-    const { name, defaultImageUrl, sex, personality, imageWidth, imageHeight } = parsed.data;
+    const { name, defaultImageUrl, characterContext, sex, personality, imageWidth, imageHeight } = parsed.data;
 
     const character = await prisma.character.create({
       data: {
         name: name ?? null,
         defaultImageUrl: defaultImageUrl ?? null,
+        characterContext: characterContext ?? null,
         sex,
         personality,
         imageWidth,

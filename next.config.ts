@@ -35,6 +35,8 @@ const nextConfig: NextConfig = {
       '@kidoo/shared/prisma': path.join(sharedResolveDir, 'prisma', 'index.js').replace(/\\/g, '/'),
       '@/shared': path.join(sharedResolveDir, 'index.ts'),
       '@/shared/*': path.join(sharedResolveDir, '*'),
+      // @imgly/background-removal importe onnxruntime-web/webgpu (résolution des exports)
+      'onnxruntime-web/webgpu': path.join(__dirname, 'node_modules/onnxruntime-web/dist/ort.webgpu.bundle.min.mjs').replace(/\\/g, '/'),
     },
   },
 
@@ -49,6 +51,7 @@ const nextConfig: NextConfig = {
 
     config.resolve = config.resolve || {};
     const sharedPrismaPath = path.join(sharedDir, 'prisma', 'index.js');
+    const onnxWebgpuPath = path.resolve(__dirname, 'node_modules/onnxruntime-web/dist/ort.webgpu.bundle.min.mjs');
     config.resolve.alias = {
       ...config.resolve.alias,
       '@kidoo/shared': sharedDir,
@@ -56,6 +59,7 @@ const nextConfig: NextConfig = {
       '@kidoo/shared/*': path.join(sharedDir, '*'),
       '@/shared': sharedDir,
       '@/shared/*': path.join(sharedDir, '*'),
+      'onnxruntime-web/webgpu': onnxWebgpuPath,
     };
     config.resolve.modules = [
       serverNodeModules,

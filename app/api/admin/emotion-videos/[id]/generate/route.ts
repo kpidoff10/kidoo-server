@@ -63,6 +63,7 @@ export const POST = withAdminAuth(
         data: {
           status: 'READY',
           binUrl: result.binUrl,
+          idxUrl: result.idxUrl,
           sha256: result.sha256,
           sizeBytes: result.sizeBytes,
           totalFrames: result.totalFrames,
@@ -84,6 +85,7 @@ export const POST = withAdminAuth(
         exitTimeline: updated.exitTimeline,
         status: updated.status,
         binUrl: updated.binUrl,
+        idxUrl: updated.idxUrl,
         sha256: updated.sha256,
         sizeBytes: updated.sizeBytes,
         totalFrames: updated.totalFrames,

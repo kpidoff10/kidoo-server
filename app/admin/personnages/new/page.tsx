@@ -23,6 +23,7 @@ export default function AdminPersonnageNewPage() {
       const character = await createMutation.mutateAsync({
         name: data.name ?? undefined,
         defaultImageUrl: data.defaultImageUrl ?? undefined,
+        characterContext: data.characterContext ?? undefined,
         sex: data.sex,
         personality: data.personality,
         imageWidth: data.imageWidth,

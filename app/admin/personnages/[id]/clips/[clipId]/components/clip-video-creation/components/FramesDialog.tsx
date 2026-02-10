@@ -1,12 +1,16 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { FaceRegions, ArtifactRegion } from '../../../../../../../lib/charactersApi';
 import { REGION_LABELS } from '../../clip-face-regions-editor/constants';
 import type { RegionKey } from '../../clip-face-regions-editor/constants';
@@ -19,7 +23,7 @@ interface FramesDialogProps {
   totalFrames: number;
   regionsByFrame: Record<number, FaceRegions>;
   artifactsByFrame: Record<number, ArtifactRegion[]>;
-  onSelectFrame: (frameIndex: number) => void;
+  onSelectFrame: (frameIndices: number[]) => void;
 }
 
 export function FramesDialog({
@@ -30,9 +34,36 @@ export function FramesDialog({
   artifactsByFrame,
   onSelectFrame,
 }: FramesDialogProps) {
-  const handleSelect = (frameIndex: number) => {
-    onSelectFrame(frameIndex);
-    onOpenChange(false);
+  const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
+  const [reverseOrder, setReverseOrder] = useState(false);
+
+  // Réinitialiser la sélection quand le dialog s'ouvre
+  useEffect(() => {
+    if (open) {
+      setSelectedFrames(new Set());
+      setReverseOrder(false);
+    }
+  }, [open]);
+
+  const handleToggleFrame = (frameIndex: number) => {
+    setSelectedFrames((prev) => {
+      const next = new Set(prev);
+      if (next.has(frameIndex)) {
+        next.delete(frameIndex);
+      } else {
+        next.add(frameIndex);
+      }
+      return next;
+    });
+  };
+
+  const handleAddFrames = () => {
+    if (selectedFrames.size > 0) {
+      const sortedFrames = Array.from(selectedFrames).sort((a, b) => a - b);
+      const finalFrames = reverseOrder ? sortedFrames.reverse() : sortedFrames;
+      onSelectFrame(finalFrames);
+      onOpenChange(false);
+    }
   };
 
   return (
@@ -41,7 +72,7 @@ export function FramesDialog({
         <DialogHeader>
           <DialogTitle>Frames disponibles</DialogTitle>
           <DialogDescription>
-            Cliquez sur une frame pour l'ajouter à la timeline (frame complète).
+            Sélectionnez les frames à ajouter à la timeline (utilisez les checkboxes).
           </DialogDescription>
         </DialogHeader>
         <div className="min-w-0 flex-1 overflow-y-auto rounded border border-border/60 bg-muted/30 p-2">
@@ -52,21 +83,20 @@ export function FramesDialog({
               const hasRegions = frameRegions != null;
               const hasArtifacts = frameArtifacts.length > 0;
               const hasAny = hasRegions || hasArtifacts;
+              const isSelected = selectedFrames.has(i);
               return (
                 <li
                   key={i}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleSelect(i)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelect(i);
-                    }
-                  }}
-                  className="flex cursor-pointer flex-col gap-1.5 px-3 py-2 text-left transition-colors hover:bg-muted/60 focus:bg-muted/50 focus:outline-none"
+                  className="flex cursor-pointer flex-col gap-1.5 px-3 py-2 text-left transition-colors hover:bg-muted/60"
+                  onClick={() => handleToggleFrame(i)}
                 >
                   <div className="flex flex-wrap items-center gap-3">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => handleToggleFrame(i)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0"
+                    />
                     <span className="shrink-0 text-sm font-medium text-foreground">
                       Frame {i}
                     </span>
@@ -100,9 +130,6 @@ export function FramesDialog({
                           —
                         </span>
                       )}
-                    </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      Ajouter
                     </span>
                   </div>
                   {(hasRegions || hasArtifacts) && (
@@ -162,6 +189,36 @@ export function FramesDialog({
             })}
           </ul>
         </div>
+        <DialogFooter className="flex-row justify-between items-center gap-3">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              {selectedFrames.size} frame{selectedFrames.size !== 1 ? 's' : ''} sélectionnée{selectedFrames.size !== 1 ? 's' : ''}
+            </span>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={reverseOrder}
+                onCheckedChange={(checked) => setReverseOrder(checked === true)}
+              />
+              <span className="text-foreground">Ordre inversé</span>
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddFrames}
+              disabled={selectedFrames.size === 0}
+            >
+              Ajouter ({selectedFrames.size})
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

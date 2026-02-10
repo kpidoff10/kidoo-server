@@ -30,6 +30,7 @@ function CharacterEditForm({
   const defaultValues: CharacterFormValues = {
     name: character.name ?? null,
     defaultImageUrl: character.defaultImageUrl ?? null,
+    characterContext: character.characterContext ?? null,
     sex: character.sex as CharacterFormValues['sex'],
     personality: character.personality as CharacterFormValues['personality'],
     imageWidth: character.imageWidth ?? 240,
@@ -41,6 +42,7 @@ function CharacterEditForm({
       await updateMutation.mutateAsync({
         name: data.name ?? undefined,
         defaultImageUrl: data.defaultImageUrl ?? undefined,
+        characterContext: data.characterContext ?? undefined,
         sex: data.sex,
         personality: data.personality,
         imageWidth: data.imageWidth,

@@ -10,24 +10,31 @@ import { CLIP_DEFAULT_FPS } from './xai';
 const FFMPEG_API_URL = process.env.FFMPEG_API_URL || 'https://api.ffmpeg-api.com';
 const FFMPEG_API_KEY = process.env.FFMPEG_API_KEY;
 
-const DEFAULT_WIDTH = 240;
-const DEFAULT_HEIGHT = 280;
+// Dimensions landscape pour ESP32 (après rotation 90°)
+// Les vidéos sources sont pivotées via transpose=1 pour obtenir du landscape
+// +125% pour agrandir l'image : 280*2.25=630, 240*2.25=540
+const DEFAULT_WIDTH = 630;
+const DEFAULT_HEIGHT = 540;
 const DEFAULT_MAX_FRAMES = 300; // ~30s à 10fps, évite de tronquer les clips
 
-// Renforcer les noirs : entrée 2%-100% → sortie 0-100% (gris très foncé → noir pur)
+// Renforcer légèrement les noirs : transition plus douce pour éviter les halos
 const LEVELS_FILTER =
-  'colorlevels=rimin=0.02:gimin=0.02:bimin=0.02:rimax=1:gimax=1:bimax=1';
+  'colorlevels=rimin=0.005:gimin=0.005:bimin=0.005:rimax=1:gimax=1:bimax=1';
 
 export interface TranscodeOptions {
   fps?: number;
   maxDurationS?: number;
   maxFrames?: number;
+  /** Début en secondes (pour respecter loopStartFrame) */
+  startS?: number;
   width?: number;
   height?: number;
 }
 
 function buildScaleFilter(width: number, height: number): string {
-  return `scale=${width}:${height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${width}:${height}:-1:-1`;
+  // scale avec aspect ratio preservé, puis pad pour centrer explicitement
+  // (ow-iw)/2 et (oh-ih)/2 centrent l'image dans le pad
+  return `scale=${width}:${height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`;
 }
 
 export interface ClipWorkerResult {
@@ -123,21 +130,26 @@ export async function transcodeToMjpeg(videoUrl: string, opts?: TranscodeOptions
   const scaleFilter = buildScaleFilter(width, height);
 
   const outputOptions = [
-    '-r', String(fps),
     '-vframes', String(maxFrames),
     '-c:v', 'mjpeg',
-    '-q:v', '2',
-    '-pix_fmt', 'yuvj444p',
+    '-q:v', '2',              // Qualité 2 : qualité maximale JPEG (échelle 2-31)
+    '-pix_fmt', 'yuvj420p',   // YUV 4:2:0 JPEG range - seul format supporté par JPEGDEC
+    '-huffman', 'default',    // Huffman tables standard
     '-f', 'mjpeg',
   ];
   if (opts?.maxDurationS != null) {
     outputOptions.push('-t', String(opts.maxDurationS));
   }
 
+  const inputOptions: string[] = ['-stream_loop', '1'];
+  if (opts?.startS != null && opts.startS > 0) {
+    inputOptions.push('-ss', String(opts.startS));
+  }
+
   const result = await callFfmpegProcess(videoUrl, {
-    inputs: [{ file_path: videoUrl, options: ['-stream_loop', '1'] }],
-    // scale (net) → levels (noirs purs) → pad
-    filter_complex: `[0:v]${scaleFilter},${LEVELS_FILTER}[out]`,
+    inputs: [{ file_path: videoUrl, options: inputOptions }],
+    // fps → transpose (rotation 90° clockwise pour landscape) → scale → levels (noirs) → pad
+    filter_complex: `[0:v]fps=${fps},transpose=1,${scaleFilter},${LEVELS_FILTER}[out]`,
     outputs: [
       {
         file: 'video.mjpeg',
@@ -197,6 +209,7 @@ async function transcodeToBin(videoUrl: string, opts?: TranscodeOptions): Promis
 
 /**
  * Produit le preview MP4 via ffmpeg-api.com.
+ * Même dimensions que le MJPEG (portrait 240x280).
  */
 async function producePreview(videoUrl: string, opts?: TranscodeOptions): Promise<Buffer> {
   const fps = opts?.fps ?? CLIP_DEFAULT_FPS;
@@ -219,7 +232,8 @@ async function producePreview(videoUrl: string, opts?: TranscodeOptions): Promis
 
   const result = await callFfmpegProcess(videoUrl, {
     inputs: [{ file_path: videoUrl, options: ['-stream_loop', '1'] }],
-    filter_complex: `[0:v]${scaleFilter}[out]`,
+    // transpose=1 pour rotation 90° clockwise (portrait → landscape)
+    filter_complex: `[0:v]transpose=1,${scaleFilter}[out]`,
     outputs: [
       {
         file: 'preview.mp4',

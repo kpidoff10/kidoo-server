@@ -68,6 +68,9 @@ export const PATCH = withAdminAuth(
           ...(parsed.data.defaultImageUrl !== undefined && {
             defaultImageUrl: parsed.data.defaultImageUrl,
           }),
+          ...(parsed.data.characterContext !== undefined && {
+            characterContext: parsed.data.characterContext,
+          }),
           ...(parsed.data.sex !== undefined && { sex: parsed.data.sex }),
           ...(parsed.data.personality !== undefined && { personality: parsed.data.personality }),
           ...(parsed.data.imageWidth !== undefined && { imageWidth: parsed.data.imageWidth }),

@@ -51,15 +51,29 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
 
     const fps = sourceClip.fps ?? 10;
 
-    // Créer l'EmotionVideo
-    const emotionVideo = await prisma.emotionVideo.create({
-      data: {
+    // Créer ou mettre à jour l'EmotionVideo (upsert pour respecter la contrainte unique)
+    const emotionVideo = await prisma.emotionVideo.upsert({
+      where: {
+        sourceClipId_emotionId: {
+          sourceClipId: body.sourceClipId,
+          emotionId: body.emotionId,
+        },
+      },
+      create: {
         emotionId: body.emotionId,
         sourceClipId: body.sourceClipId,
         name: body.name ?? null,
         fps,
         width: sourceClip.width ?? 240,
         height: sourceClip.height ?? 280,
+        introTimeline: introTimeline as any,
+        loopTimeline: loopTimeline as any,
+        exitTimeline: exitTimeline as any,
+        totalFrames,
+        durationS: totalFrames / fps,
+      },
+      update: {
+        name: body.name ?? null,
         introTimeline: introTimeline as any,
         loopTimeline: loopTimeline as any,
         exitTimeline: exitTimeline as any,

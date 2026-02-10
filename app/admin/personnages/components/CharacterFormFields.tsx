@@ -4,6 +4,7 @@ import { UseFormRegister, FieldErrors, UseFormSetValue, UseFormWatch } from 'rea
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { SEX_OPTIONS, PERSONALITY_OPTIONS } from './constants';
 import type { CharacterFormValues } from './CharacterForm';
 
@@ -39,6 +40,24 @@ export function CharacterFormFields({ register, errors, setValue, watch }: Chara
         {errors.name && (
           <p className="text-sm text-destructive">{errors.name.message}</p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="characterContext">Description pour l'IA (optionnel)</Label>
+        <Textarea
+          id="characterContext"
+          {...register('characterContext')}
+          placeholder="ex. C'est un fantôme mignon, il n'a pas de bouche ni de nez, juste de grands yeux expressifs..."
+          maxLength={2000}
+          rows={4}
+          className="resize-none"
+        />
+        {errors.characterContext && (
+          <p className="text-sm text-destructive">{errors.characterContext.message}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Ce texte aide l'IA à comprendre les spécificités du personnage lors de la génération des animations.
+        </p>
       </div>
 
       <div className="space-y-2">

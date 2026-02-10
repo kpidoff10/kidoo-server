@@ -70,16 +70,16 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
   // Charger les EmotionVideos existantes pour ce clip
   const { data: emotionVideos, isLoading: isLoadingEmotionVideos } = useEmotionVideosByClip(clip.id);
 
-  // Trouver l'EmotionVideo DRAFT pour cette émotion (ou la première disponible)
+  // Trouver l'EmotionVideo pour cette émotion (peu importe le status)
   const existingDraft = useMemo(() => {
     if (!emotionVideos?.length) return null;
-    // Chercher d'abord un draft pour cette émotion
+    // Chercher l'EmotionVideo pour cette émotion (DRAFT, READY, etc.)
     const draft = emotionVideos.find(
-      (ev) => ev.emotionId === clip.emotionId && ev.status === 'DRAFT'
+      (ev) => ev.emotionId === clip.emotionId && ev.status !== 'DISABLED'
     );
     if (draft) return draft;
-    // Sinon prendre le premier draft disponible
-    return emotionVideos.find((ev) => ev.status === 'DRAFT') ?? null;
+    // Sinon prendre la première disponible
+    return emotionVideos.find((ev) => ev.status !== 'DISABLED') ?? null;
   }, [emotionVideos, clip.emotionId]);
 
   // EmotionVideo READY avec binUrl (fichier .mjpeg généré) pour le bouton Télécharger
@@ -96,23 +96,9 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
   const [isInitialized, setIsInitialized] = useState(false);
 
   // 3 Timelines séparées (intro, loop, exit)
-  const [introTimeline, setIntroTimeline] = useState<TimelineFrame[]>(() => {
-    // Initialiser avec toutes les frames du clip dans l'intro
-    const initialIntro: TimelineFrame[] = [];
-
-    for (let i = 0; i < totalFrames; i++) {
-      initialIntro.push({
-        frameIndex: i,
-        type: 'full',
-        sourceFrameIndex: i,
-      });
-    }
-
-    return initialIntro;
-  });
-
+  // IMPORTANT: Initialiser avec des tableaux vides et attendre les données de la DB
+  const [introTimeline, setIntroTimeline] = useState<TimelineFrame[]>([]);
   const [loopTimeline, setLoopTimeline] = useState<TimelineFrame[]>([]);
-
   const [exitTimeline, setExitTimeline] = useState<TimelineFrame[]>([]);
 
   const [framesDialogOpen, setFramesDialogOpen] = useState(false);
@@ -143,13 +129,23 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
 
   // Ref pour le debounce de l'auto-save
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Flag pour éviter l'auto-save lors du chargement initial
+  const isFirstLoadRef = useRef(true);
 
-  // Initialiser les 3 timelines depuis la DB si un draft existe
+  // Réinitialiser quand le clip ou l'émotion change
   useEffect(() => {
-    if (isInitialized) return;
+    setIsInitialized(false);
+    setEmotionVideoId(null);
+    isFirstLoadRef.current = true;
+  }, [clip.id, clip.emotionId]);
 
-    // Attendre que le chargement soit terminé avant d'initialiser
+  // Charger les timelines depuis la DB si un draft existe
+  useEffect(() => {
+    // Attendre que le chargement soit terminé
     if (isLoadingEmotionVideos) return;
+
+    // Ne charger qu'une seule fois
+    if (isInitialized) return;
 
     if (existingDraft) {
       setEmotionVideoId(existingDraft.id);
@@ -163,16 +159,43 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
       if (existingDraft.exitTimeline && Array.isArray(existingDraft.exitTimeline)) {
         setExitTimeline(existingDraft.exitTimeline as TimelineFrame[]);
       }
+      setIsInitialized(true);
+      // Marquer comme chargé pour éviter l'auto-save initial
+      setTimeout(() => {
+        isFirstLoadRef.current = false;
+      }, 100);
+    } else {
+      // Pas de draft : initialiser avec toutes les frames dans intro
+      const defaultIntro: TimelineFrame[] = [];
+      for (let i = 0; i < totalFrames; i++) {
+        defaultIntro.push({
+          frameIndex: i,
+          type: 'full',
+          sourceFrameIndex: i,
+        });
+      }
+      setIntroTimeline(defaultIntro);
+      setLoopTimeline([]);
+      setExitTimeline([]);
+      setIsInitialized(true);
+      // Marquer comme chargé pour éviter l'auto-save initial
+      setTimeout(() => {
+        isFirstLoadRef.current = false;
+      }, 100);
     }
-
-    // Marquer comme initialisé seulement après que le chargement soit terminé
-    setIsInitialized(true);
   }, [existingDraft, isLoadingEmotionVideos, isInitialized]);
 
   // Auto-save avec debounce quand les 3 timelines changent
   useEffect(() => {
     // Ne pas auto-save avant l'initialisation
     if (!isInitialized) return;
+
+    // Ne pas auto-save lors du chargement initial
+    if (isFirstLoadRef.current) return;
+
+    // Ne pas auto-save si toutes les timelines sont vides
+    const hasContent = introTimeline.length > 0 || loopTimeline.length > 0 || exitTimeline.length > 0;
+    if (!hasContent) return;
 
     // Annuler le timeout précédent
     if (autoSaveTimeoutRef.current) {
@@ -262,29 +285,33 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
     return { regions: null, artifacts: [] };
   };
 
-  const handleAddFullFrame = (sourceFrameIndex: number, targetPhase: 'intro' | 'loop' | 'exit' = 'loop') => {
+  const handleAddFullFrame = (sourceFrameIndices: number[], targetPhase: 'intro' | 'loop' | 'exit' = 'loop') => {
+    // Créer les nouvelles frames pour chaque index
+    const newFrames = sourceFrameIndices.map((sourceFrameIndex, idx) => ({
+      frameIndex: 0, // Will be recalculated
+      type: 'full' as const,
+      sourceFrameIndex,
+    }));
+
     // Ajouter à la phase cible
     if (targetPhase === 'intro') {
-      const newFrame: TimelineFrame = {
-        frameIndex: introTimeline.length,
-        type: 'full',
-        sourceFrameIndex,
-      };
-      setIntroTimeline([...introTimeline, newFrame]);
+      const updatedTimeline = [...introTimeline, ...newFrames].map((f, idx) => ({
+        ...f,
+        frameIndex: idx,
+      }));
+      setIntroTimeline(updatedTimeline);
     } else if (targetPhase === 'loop') {
-      const newFrame: TimelineFrame = {
-        frameIndex: loopTimeline.length,
-        type: 'full',
-        sourceFrameIndex,
-      };
-      setLoopTimeline([...loopTimeline, newFrame]);
+      const updatedTimeline = [...loopTimeline, ...newFrames].map((f, idx) => ({
+        ...f,
+        frameIndex: idx,
+      }));
+      setLoopTimeline(updatedTimeline);
     } else {
-      const newFrame: TimelineFrame = {
-        frameIndex: exitTimeline.length,
-        type: 'full',
-        sourceFrameIndex,
-      };
-      setExitTimeline([...exitTimeline, newFrame]);
+      const updatedTimeline = [...exitTimeline, ...newFrames].map((f, idx) => ({
+        ...f,
+        frameIndex: idx,
+      }));
+      setExitTimeline(updatedTimeline);
     }
   };
 
@@ -565,31 +592,35 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
   const generateESP32Json = () => {
     const totalFrames = introTimeline.length + loopTimeline.length + exitTimeline.length;
 
-    // Fonction helper pour extraire le sourceFrameIndex d'une frame
-    const getSourceFrameIndex = (frame: TimelineFrame): number | null => {
-      // Si c'est une frame 'full', retourner directement le sourceFrameIndex
+    // Fonction helper pour convertir une frame en objet JSON avec sourceFrameIndex et actions
+    const mapFrame = (frame: TimelineFrame) => {
+      // Extraire le sourceFrameIndex
+      let sourceFrameIndex: number | null = null;
+
       if (frame.type === 'full' && frame.sourceFrameIndex !== undefined) {
-        return frame.sourceFrameIndex;
-      }
-
-      // Si c'est une frame 'composite', prendre le sourceFrameIndex de la première région disponible
-      if (frame.type === 'composite' && frame.regions) {
+        sourceFrameIndex = frame.sourceFrameIndex;
+      } else if (frame.type === 'composite' && frame.regions) {
         if (frame.regions.leftEye?.sourceFrameIndex !== undefined) {
-          return frame.regions.leftEye.sourceFrameIndex;
-        }
-        if (frame.regions.rightEye?.sourceFrameIndex !== undefined) {
-          return frame.regions.rightEye.sourceFrameIndex;
-        }
-        if (frame.regions.mouth?.sourceFrameIndex !== undefined) {
-          return frame.regions.mouth.sourceFrameIndex;
+          sourceFrameIndex = frame.regions.leftEye.sourceFrameIndex;
+        } else if (frame.regions.rightEye?.sourceFrameIndex !== undefined) {
+          sourceFrameIndex = frame.regions.rightEye.sourceFrameIndex;
+        } else if (frame.regions.mouth?.sourceFrameIndex !== undefined) {
+          sourceFrameIndex = frame.regions.mouth.sourceFrameIndex;
         }
       }
 
-      return null;
-    };
+      // Retourner un objet avec sourceFrameIndex et actions (si présentes)
+      const result: { sourceFrameIndex: number | null; actions?: any[] } = {
+        sourceFrameIndex,
+      };
 
-    // Extraire les sourceFrameIndex de toutes les frames de chaque phase
-    const mapTimeline = (timeline: TimelineFrame[]) => timeline.map(getSourceFrameIndex);
+      // Ajouter les actions si elles existent
+      if (frame.actions && frame.actions.length > 0) {
+        result.actions = frame.actions;
+      }
+
+      return result;
+    };
 
     return {
       emotionId: clip.emotionId,
@@ -602,15 +633,15 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
       phases: {
         intro: {
           frames: introTimeline.length,
-          timeline: mapTimeline(introTimeline),
+          timeline: introTimeline.map(mapFrame),
         },
         loop: {
           frames: loopTimeline.length,
-          timeline: mapTimeline(loopTimeline),
+          timeline: loopTimeline.map(mapFrame),
         },
         exit: {
           frames: exitTimeline.length,
-          timeline: mapTimeline(exitTimeline),
+          timeline: exitTimeline.map(mapFrame),
         },
       },
     };
@@ -675,6 +706,16 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
 
       {/* Actions finales */}
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+        {allFrames.length === 0 && (
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={handleClearTimeline}
+          >
+            Initialiser la timeline
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -697,21 +738,40 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
           {generateEmotionVideoMutation.isPending ? 'Génération...' : 'Générer le .mjpeg'}
         </Button>
         {(emotionVideoWithFile?.binUrl ?? clip.fileUrl) && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            asChild
-          >
-            <a
-              href={emotionVideoWithFile?.binUrl ?? clip.fileUrl ?? '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              download="video.mjpeg"
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              asChild
             >
-              Télécharger
-            </a>
-          </Button>
+              <a
+                href={emotionVideoWithFile?.binUrl ?? clip.fileUrl ?? '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                download="video.mjpeg"
+              >
+                📥 Télécharger .mjpeg
+              </a>
+            </Button>
+            {emotionVideoWithFile?.idxUrl && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                asChild
+              >
+                <a
+                  href={emotionVideoWithFile.idxUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download="video.idx"
+                >
+                  📥 Télécharger .idx
+                </a>
+              </Button>
+            )}
+          </>
         )}
       </div>
 
@@ -722,7 +782,7 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
         totalFrames={totalFrames}
         regionsByFrame={regionsByFrame}
         artifactsByFrame={artifactsByFrame}
-        onSelectFrame={(sourceIdx) => handleAddFullFrame(sourceIdx, targetPhase)}
+        onSelectFrame={(sourceIndices) => handleAddFullFrame(sourceIndices, targetPhase)}
       />
 
       {/* Dialog pour créer des frames composites */}

@@ -137,8 +137,8 @@ export function useGenerateClip(characterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (emotionKey: string) => {
-      const res = await charactersApi.generateClip(characterId, emotionKey);
+    mutationFn: async (params: { emotionKey: string; variantPrompt?: string | null }) => {
+      const res = await charactersApi.generateClip(characterId, params.emotionKey, params.variantPrompt);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
@@ -169,6 +169,21 @@ export function useSyncClipStatus(characterId: string) {
   return useMutation({
     mutationFn: async (clipId: string) => {
       const res = await charactersApi.syncClipStatus(clipId);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CHARACTER_CLIPS_KEY(characterId) });
+    },
+  });
+}
+
+export function useDeleteClip(characterId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (clipId: string) => {
+      const res = await charactersApi.deleteClip(clipId);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
