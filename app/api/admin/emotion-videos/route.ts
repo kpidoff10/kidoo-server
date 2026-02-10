@@ -42,7 +42,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     // Vérifier que le clip source existe
     const sourceClip = await prisma.clip.findUnique({
       where: { id: body.sourceClipId },
-      select: { id: true, fps: true, width: true, height: true },
+      select: { id: true, fps: true, width: true, height: true, trigger: true, variant: true },
     });
 
     if (!sourceClip) {
@@ -50,13 +50,16 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     }
 
     const fps = sourceClip.fps ?? 10;
+    const trigger = sourceClip.trigger ?? 'manual';
+    const variant = sourceClip.variant ?? 1;
 
-    // Créer ou mettre à jour l'EmotionVideo (upsert pour respecter la contrainte unique)
+    // Créer ou mettre à jour l'EmotionVideo (upsert pour respecter la contrainte unique sourceClipId_emotionId_variant)
     const emotionVideo = await prisma.emotionVideo.upsert({
       where: {
-        sourceClipId_emotionId: {
+        sourceClipId_emotionId_variant: {
           sourceClipId: body.sourceClipId,
           emotionId: body.emotionId,
+          variant,
         },
       },
       create: {
@@ -66,6 +69,8 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
         fps,
         width: sourceClip.width ?? 240,
         height: sourceClip.height ?? 280,
+        trigger,
+        variant,
         introTimeline: introTimeline as any,
         loopTimeline: loopTimeline as any,
         exitTimeline: exitTimeline as any,
@@ -74,6 +79,8 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       },
       update: {
         name: body.name ?? null,
+        trigger,
+        variant,
         introTimeline: introTimeline as any,
         loopTimeline: loopTimeline as any,
         exitTimeline: exitTimeline as any,

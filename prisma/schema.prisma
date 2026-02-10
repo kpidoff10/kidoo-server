@@ -139,6 +139,8 @@ model Clip {
   loopStartFrame   Int?      // Frame (0-based) début de boucle
   loopEndFrame    Int?      // Frame (0-based) fin de boucle (si null = dernière frame)
   weight          Int       @default(100) // Poids pour sélection aléatoire
+  trigger         String?   @default("manual") // Déclencheur automatique (hunger_low, eating_finished, etc.)
+  variant         Int       @default(1) // Variante (1-4) pour permettre plusieurs animations par trigger (ex: biberon=1, gâteau=2, pomme=3, bonbon=4)
   tags           String[]  @default([])  // Tags libres (Postgres)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -215,6 +217,10 @@ model EmotionVideo {
   loopTimeline  Json       // Array<TimelineFrame> - Phase de boucle (OBLIGATOIRE, min 1 frame)
   exitTimeline  Json       // Array<TimelineFrame> - Phase de sortie (optionnelle)
 
+  // Trigger et variant (hérités du clip source)
+  trigger     String?    @default("manual") // Déclencheur automatique (copié depuis sourceClip)
+  variant     Int        @default(1) // Variante (1-4, copié depuis sourceClip)
+
   // Résultat généré
   status      ClipStatus @default(DRAFT) // DRAFT, GENERATING, READY, FAILED
   binUrl      String?    // URL du .bin généré (R2)
@@ -230,10 +236,11 @@ model EmotionVideo {
   emotion     Emotion    @relation(fields: [emotionId], references: [id], onDelete: Cascade)
   sourceClip  Clip       @relation(fields: [sourceClipId], references: [id], onDelete: Cascade)
 
-  @@unique([sourceClipId, emotionId])
+  @@unique([sourceClipId, emotionId, variant])
   @@index([emotionId])
   @@index([sourceClipId])
   @@index([status])
+  @@index([trigger, variant])
   @@map("emotion_videos")
 }
 

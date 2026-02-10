@@ -1,9 +1,37 @@
 'use client';
 
-import type { CharacterClipDetail } from '../../../../../lib/charactersApi';
+import type { CharacterClipDetail, TriggerType } from '../../../../../lib/charactersApi';
 
 export interface ClipDetailInfoProps {
   clip: CharacterClipDetail;
+}
+
+/**
+ * Labels pour les triggers automatiques
+ */
+const TRIGGER_LABELS: Record<TriggerType, string> = {
+  manual: 'Manuel (pas de déclenchement auto)',
+  hunger_critical: 'Faim critique (≤10%)',
+  hunger_low: "J'ai faim (≤20%)",
+  hunger_medium: 'Faim moyenne (40-60%)',
+  hunger_full: 'Rassasié (≥90%)',
+  eating_started: 'Commence à manger',
+  eating_in_progress: 'En train de manger',
+  eating_finished: "J'ai fini de manger",
+  happiness_low: 'Triste (≤20%)',
+  happiness_medium: 'Content (40-60%)',
+  happiness_high: 'Très heureux (≥80%)',
+  health_critical: 'Très malade (≤20%)',
+  health_low: 'Malade (≤40%)',
+  health_good: 'En bonne santé (≥80%)',
+  fatigue_high: 'Très fatigué (≥80%)',
+  fatigue_low: 'Bien reposé (≤20%)',
+  hygiene_low: 'Sale (≤20%)',
+  hygiene_good: 'Propre (≥80%)',
+};
+
+function getTriggerLabel(trigger: TriggerType): string {
+  return TRIGGER_LABELS[trigger] || trigger;
 }
 
 export function ClipDetailInfo({ clip }: ClipDetailInfoProps) {
@@ -37,6 +65,15 @@ export function ClipDetailInfo({ clip }: ClipDetailInfoProps) {
         <div>
           <dt className="text-muted-foreground">Poids</dt>
           <dd className="text-foreground">{clip.weight}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-muted-foreground">Déclencheur automatique</dt>
+          <dd className="text-foreground">
+            {clip.trigger ? getTriggerLabel(clip.trigger) : getTriggerLabel('manual')}
+          </dd>
+          <dd className="text-xs text-muted-foreground mt-1">
+            Plusieurs clips peuvent avoir le même trigger. Le système en choisira un au hasard.
+          </dd>
         </div>
         {clip.loopStartFrame != null && (
           <div>
