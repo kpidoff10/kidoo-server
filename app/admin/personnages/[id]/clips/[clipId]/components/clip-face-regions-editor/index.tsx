@@ -597,6 +597,12 @@ export function ClipFaceRegionsEditor({
     onSave?.({ faceRegionsByFrame: byFrameStr, artifactsByFrame: artifactsStr });
   }, [onSave, regionsByFrame, artifactsByFrame]);
 
+  const handleResetRegions = useCallback(() => {
+    stopPlayback();
+    setCurrentFrameIndex(0);
+    setRegionsByFrame({ 0: getDefaultRegions() });
+  }, [stopPlayback]);
+
   const handleGenerateRegionImages = useCallback(async (removeBackground = false) => {
     if (isImage) {
       onGenerateRegionImages?.();
@@ -830,6 +836,15 @@ export function ClipFaceRegionsEditor({
                 : `Enregistrer (${totalFrames - framesManaged} frame(s) restante(s))`}
           </Button>
         )}
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={handleResetRegions}
+          disabled={isSaving || isGeneratingAny}
+          title="Supprimer toutes les régions par frame"
+        >
+          Réinitialiser les régions
+        </Button>
         {(onGenerateRegionImages || onRegionImagesComplete) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

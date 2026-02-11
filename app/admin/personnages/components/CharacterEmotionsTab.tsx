@@ -47,6 +47,7 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
   const [editPromptCustom, setEditPromptCustom] = useState('');
   const [variantDialogOpen, setVariantDialogOpen] = useState(false);
   const [variantPrompt, setVariantPrompt] = useState('');
+  const [variantDurationS, setVariantDurationS] = useState(3);
   const [pendingEmotionKey, setPendingEmotionKey] = useState<string | null>(null);
 
   const isLoading = emotionsLoading || clipsLoading;
@@ -89,6 +90,7 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
   const handleOpenVariantDialog = (emotionKey: string) => {
     setPendingEmotionKey(emotionKey);
     setVariantPrompt('');
+    setVariantDurationS(3);
     setVariantDialogOpen(true);
   };
 
@@ -98,6 +100,7 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
       await generateClipMutation.mutateAsync({
         emotionKey: pendingEmotionKey,
         variantPrompt: variantPrompt.trim() || null,
+        durationS: variantDurationS,
       });
       setVariantDialogOpen(false);
       setVariantPrompt('');
@@ -250,7 +253,7 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                         variant="outline"
                         disabled={generateClipMutation.isPending}
                         onClick={() => handleOpenVariantDialog(emotion.key)}
-                        title="Génère un clip 3s via xAI (Grok Imagine) avec possibilité d'ajouter un prompt personnalisé pour cette variante."
+                        title="Génère un clip 3–6s via xAI (Grok Imagine) avec possibilité d'ajouter un prompt personnalisé pour cette variante."
                       >
                         {generateClipMutation.isPending && generateClipMutation.variables?.emotionKey === emotion.key
                           ? 'Génération…'
@@ -372,6 +375,23 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
               <p className="text-xs text-muted-foreground">
                 Décrivez des détails spécifiques pour cette variante : objets, direction du regard, effets visuels...
               </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="variant-duration">Durée (secondes)</Label>
+              <Input
+                id="variant-duration"
+                type="number"
+                min={3}
+                max={6}
+                step={1}
+                value={variantDurationS}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  if (Number.isNaN(n)) return;
+                  setVariantDurationS(Math.max(3, Math.min(6, n)));
+                }}
+              />
+              <p className="text-xs text-muted-foreground">Entre 3 et 6 secondes.</p>
             </div>
           </div>
           <DialogFooter>

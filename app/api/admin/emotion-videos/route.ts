@@ -51,7 +51,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
 
     const fps = sourceClip.fps ?? 10;
 
-    // Créer ou mettre à jour l'EmotionVideo (upsert pour respecter la contrainte unique)
+    // Créer ou mettre à jour l'EmotionVideo (unique par sourceClipId + emotionId ; trigger/variant = Clip)
     const emotionVideo = await prisma.emotionVideo.upsert({
       where: {
         sourceClipId_emotionId: {

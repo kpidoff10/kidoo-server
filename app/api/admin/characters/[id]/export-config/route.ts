@@ -41,6 +41,7 @@ interface EmotionVideoExport {
 interface EmotionExport {
   key: string;
   trigger?: string;
+  variant?: number;
   emotionId: string;
   emotion_videos: EmotionVideoExport[];
 }
@@ -75,28 +76,41 @@ export const GET = withAdminAuth(
       // Filtrer les clips qui ont au moins un EmotionVideo valide
       const clipsWithVideos = clips.filter(clip => clip.emotionVideos.length > 0);
 
-      // Grouper par émotion (key)
+      // Grouper par émotion (key + variant du Clip, source de vérité)
       const emotionMap = new Map<string, {
         emotionId: string;
         key: string;
         trigger?: string;
+        variant?: number;
         videos: typeof clips[0]['emotionVideos'];
       }>();
 
+      const EATING_KEYS = ['eating_started', 'eating_in_progress', 'eating_finished'];
+      const normalizeEatingKey = (k: string) => (EATING_KEYS.includes(k) ? 'eating' : k);
+      const normalizeEatingTrigger = (t: string | null) =>
+        (t && EATING_KEYS.includes(t) ? 'eating' : t) ?? 'manual';
+
       for (const clip of clipsWithVideos) {
         const key = clip.emotion.key;
+        const normalizedKey = normalizeEatingKey(key);
+        const normalizedTrigger = normalizeEatingTrigger(clip.trigger);
 
-        if (!emotionMap.has(key)) {
-          emotionMap.set(key, {
-            emotionId: clip.emotionId,
-            key,
-            trigger: (clip as any).trigger || 'manual', // Default to 'manual' if not set
-            videos: [],
-          });
+        for (const video of clip.emotionVideos) {
+          const mapKey = `${normalizedKey}_v${clip.variant ?? 1}`;
+
+          if (!emotionMap.has(mapKey)) {
+            emotionMap.set(mapKey, {
+              emotionId: clip.emotionId,
+              key: normalizedKey,
+              trigger: normalizedTrigger,
+              variant: clip.variant ?? 1,
+              videos: [],
+            });
+          }
+
+          const emotion = emotionMap.get(mapKey)!;
+          emotion.videos.push(video);
         }
-
-        const emotion = emotionMap.get(key)!;
-        emotion.videos.push(...clip.emotionVideos);
       }
 
       // Formater pour l'export ESP32
@@ -104,10 +118,10 @@ export const GET = withAdminAuth(
 
       for (const [_key, emotion] of emotionMap) {
         const emotionVideos: EmotionVideoExport[] = emotion.videos.map(video => {
-          // Parser les timelines JSON
-          const introTimeline = video.introTimeline as TimelineFrame[];
-          const loopTimeline = video.loopTimeline as TimelineFrame[];
-          const exitTimeline = video.exitTimeline as TimelineFrame[];
+          // Parser les timelines JSON (Prisma renvoie JsonValue, cast via unknown)
+          const introTimeline = (video.introTimeline as unknown) as TimelineFrame[];
+          const loopTimeline = (video.loopTimeline as unknown) as TimelineFrame[];
+          const exitTimeline = (video.exitTimeline as unknown) as TimelineFrame[];
 
           return {
             emotion_videoId: video.id,
@@ -136,13 +150,18 @@ export const GET = withAdminAuth(
         exportData.push({
           key: emotion.key,
           trigger: emotion.trigger,
+          variant: emotion.variant,
           emotionId: emotion.emotionId,
           emotion_videos: emotionVideos,
         });
       }
 
-      // Trier par key pour avoir un ordre cohérent
-      exportData.sort((a, b) => a.key.localeCompare(b.key));
+      // Trier par key puis variant pour avoir un ordre cohérent
+      exportData.sort((a, b) => {
+        const keyCompare = a.key.localeCompare(b.key);
+        if (keyCompare !== 0) return keyCompare;
+        return (a.variant || 1) - (b.variant || 1);
+      });
 
       // Retourner le JSON avec les bons headers pour téléchargement
       return new NextResponse(JSON.stringify(exportData, null, 2), {

@@ -225,6 +225,7 @@ export const PATCH = withAdminAuth(
         loopStartFrame?: number | null;
         loopEndFrame?: number | null;
         trigger?: string | null;
+        variant?: number | null;
         faceRegions?: FaceRegionsPayload | null;
         /** Régions par frame (clé = index de frame en string) */
         faceRegionsByFrame?: Record<string, FaceRegionsPayload> | null;
@@ -241,6 +242,7 @@ export const PATCH = withAdminAuth(
         loopStartFrame?: number | null;
         loopEndFrame?: number | null;
         trigger?: string | null;
+        variant?: number;
       } = {};
       if (body.loopStartFrame !== undefined) {
         updateData.loopStartFrame = body.loopStartFrame === null ? null : body.loopStartFrame;
@@ -250,6 +252,11 @@ export const PATCH = withAdminAuth(
       }
       if (body.trigger !== undefined) {
         updateData.trigger = body.trigger === null ? 'manual' : body.trigger;
+      }
+      if (body.variant !== undefined) {
+        // 0 = "n'importe lequel" (manger sans aliment précis), 1-4 = variants
+        updateData.variant =
+          body.variant === null ? 1 : body.variant === 0 ? 0 : Math.max(1, Math.min(4, body.variant));
       }
 
       const updated = await prisma.$transaction(async (tx) => {

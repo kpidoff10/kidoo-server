@@ -2,7 +2,7 @@
  * API client pour les personnages (admin)
  */
 
-import type { CreateCharacterInput, UpdateCharacterInput } from '@kidoo/shared';
+import type { CreateCharacterInput, UpdateCharacterInput, EmotionTriggerType } from '@kidoo/shared';
 
 export interface Character {
   id: string;
@@ -17,34 +17,8 @@ export interface Character {
   updatedAt: string;
 }
 
-/**
- * Types de triggers automatiques pour les émotions/clips
- */
-export type TriggerType =
-  | 'manual' // Pas de déclenchement automatique
-  // Hunger triggers
-  | 'hunger_critical' // Hunger ≤ 10%
-  | 'hunger_low' // Hunger ≤ 20%
-  | 'hunger_medium' // Hunger entre 40-60%
-  | 'hunger_full' // Hunger ≥ 90%
-  // Eating events
-  | 'eating_started' // Commence à manger
-  | 'eating_in_progress' // En train de manger
-  | 'eating_finished' // J'ai fini de manger
-  // Happiness triggers
-  | 'happiness_low' // Happiness ≤ 20%
-  | 'happiness_medium' // Happiness entre 40-60%
-  | 'happiness_high' // Happiness ≥ 80%
-  // Health triggers
-  | 'health_critical' // Health ≤ 20%
-  | 'health_low' // Health ≤ 40%
-  | 'health_good' // Health ≥ 80%
-  // Fatigue triggers
-  | 'fatigue_high' // Fatigue ≥ 80%
-  | 'fatigue_low' // Fatigue ≤ 20%
-  // Hygiene triggers
-  | 'hygiene_low' // Hygiene ≤ 20%
-  | 'hygiene_good'; // Hygiene ≥ 80%
+/** Types de triggers automatiques (alignés avec kidoo-shared/emotions/triggers et l’ESP32). */
+export type TriggerType = EmotionTriggerType;
 
 export interface CharacterClip {
   id: string;
@@ -56,6 +30,7 @@ export interface CharacterClip {
   workingPreviewUrl?: string | null;
   weight: number;
   trigger?: TriggerType; // Déclencheur automatique de l'émotion
+  variant?: number; // Variante (1-4) pour permettre plusieurs animations par trigger
   emotion: { id: string; key: string; label: string };
   createdAt: string;
   updatedAt: string;
@@ -123,6 +98,7 @@ export interface UpdateClipInput {
   loopStartFrame?: number | null;
   loopEndFrame?: number | null;
   trigger?: TriggerType | null; // Déclencheur automatique
+  variant?: number | null; // Variante (1-4)
   faceRegions?: FaceRegions | null;
   /** Régions par frame (clé = index de frame en string) */
   faceRegionsByFrame?: Record<string, FaceRegions> | null;
@@ -194,12 +170,17 @@ export const charactersApi = {
     }),
 
   /** Générer un clip via xAI (Grok Imagine) pour une émotion */
-  generateClip: (characterId: string, emotionKey: string, variantPrompt?: string | null) =>
+  generateClip: (
+    characterId: string,
+    emotionKey: string,
+    variantPrompt?: string | null,
+    durationS?: number
+  ) =>
     api<{ clipId: string; jobId?: string; status: string; prompt: string }>(
       '/api/admin/clips/generate',
       {
         method: 'POST',
-        body: JSON.stringify({ characterId, emotionKey, variantPrompt }),
+        body: JSON.stringify({ characterId, emotionKey, variantPrompt, durationS }),
       }
     ),
 

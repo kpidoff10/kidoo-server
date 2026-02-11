@@ -137,8 +137,13 @@ export function useGenerateClip(characterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { emotionKey: string; variantPrompt?: string | null }) => {
-      const res = await charactersApi.generateClip(characterId, params.emotionKey, params.variantPrompt);
+    mutationFn: async (params: { emotionKey: string; variantPrompt?: string | null; durationS?: number }) => {
+      const res = await charactersApi.generateClip(
+        characterId,
+        params.emotionKey,
+        params.variantPrompt,
+        params.durationS
+      );
       if (!res.success) throw new Error(res.error);
       return res.data;
     },

@@ -10,7 +10,8 @@ export interface TriggerSelectorProps {
 }
 
 /**
- * Options pour le sélecteur de trigger
+ * Options pour le sélecteur de trigger.
+ * Les valeurs (value) doivent rester alignées avec kidoo-shared/emotions/triggers et l’ESP32.
  */
 const TRIGGER_OPTIONS: Array<{ value: TriggerType; label: string; description: string; category: string }> = [
   { value: 'manual', label: 'Manuel', description: 'Pas de déclenchement automatique', category: 'Général' },
@@ -19,12 +20,9 @@ const TRIGGER_OPTIONS: Array<{ value: TriggerType; label: string; description: s
   { value: 'hunger_critical', label: 'Faim critique', description: 'Quand la faim est ≤ 10%', category: 'Faim' },
   { value: 'hunger_low', label: "J'ai faim", description: 'Quand la faim est ≤ 20%', category: 'Faim' },
   { value: 'hunger_medium', label: 'Faim moyenne', description: 'Quand la faim est entre 40-60%', category: 'Faim' },
-  { value: 'hunger_full', label: 'Rassasié', description: 'Quand la faim est ≥ 90%', category: 'Faim' },
 
-  // Eating
-  { value: 'eating_started', label: 'Commence à manger', description: 'Quand un objet de nourriture est utilisé', category: 'Manger' },
-  { value: 'eating_in_progress', label: 'En train de manger', description: 'Pendant un effet progressif de nourriture', category: 'Manger' },
-  { value: 'eating_finished', label: "J'ai fini de manger", description: 'Quand la faim atteint 100%', category: 'Manger' },
+  // Manger (un seul trigger, variants = Biberon / Gâteau / Pomme / Bonbon comme la faim)
+  { value: 'eating', label: 'Mange', description: 'Manger (mêmes variants que la faim)', category: 'Manger' },
 
   // Happiness
   { value: 'happiness_low', label: 'Triste', description: 'Quand le bonheur est ≤ 20%', category: 'Bonheur' },

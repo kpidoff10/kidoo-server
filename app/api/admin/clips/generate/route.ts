@@ -20,6 +20,7 @@ const bodySchema = z.object({
   characterId: z.string().uuid(),
   emotionKey: z.string().min(1),
   variantPrompt: z.string().max(2000).optional().nullable(),
+  durationS: z.number().int().min(3).max(6).optional(),
 });
 
 export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => {
@@ -35,6 +36,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     }
 
     const { characterId, emotionKey, variantPrompt } = parsed.data;
+    const durationS = parsed.data.durationS ?? XAI_VIDEO_DURATION_SECONDS;
 
     const character = await prisma.character.findUnique({ where: { id: characterId } });
     if (!character) {
@@ -53,7 +55,8 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       emotion.label,
       character.characterContext,
       emotion.promptCustom,
-      variantPrompt ?? undefined
+      variantPrompt ?? undefined,
+      durationS
     );
     const imageUrl = character.defaultImageUrl ?? null;
 
@@ -66,11 +69,11 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
         prompt,
         variantPrompt: variantPrompt ?? null,
         modelName: 'grok-imagine-video',
-        durationS: XAI_VIDEO_DURATION_SECONDS,
+        durationS,
         width: character.imageWidth,
         height: character.imageHeight,
         fps,
-        frames: Math.ceil(XAI_VIDEO_DURATION_SECONDS * fps),
+        frames: Math.ceil(durationS * fps),
       },
       include: { emotion: true },
     });
@@ -80,6 +83,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       imageUrl,
       width: character.imageWidth ?? 240,
       height: character.imageHeight ?? 280,
+      durationS,
     });
 
     if (result.error) {

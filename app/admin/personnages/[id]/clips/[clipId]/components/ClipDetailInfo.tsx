@@ -1,6 +1,7 @@
 'use client';
 
 import type { CharacterClipDetail, TriggerType } from '../../../../../lib/charactersApi';
+import { getVariantLabel } from '../../../../../lib/getVariantLabel';
 
 export interface ClipDetailInfoProps {
   clip: CharacterClipDetail;
@@ -14,10 +15,7 @@ const TRIGGER_LABELS: Record<TriggerType, string> = {
   hunger_critical: 'Faim critique (≤10%)',
   hunger_low: "J'ai faim (≤20%)",
   hunger_medium: 'Faim moyenne (40-60%)',
-  hunger_full: 'Rassasié (≥90%)',
-  eating_started: 'Commence à manger',
-  eating_in_progress: 'En train de manger',
-  eating_finished: "J'ai fini de manger",
+  eating: 'Mange',
   happiness_low: 'Triste (≤20%)',
   happiness_medium: 'Content (40-60%)',
   happiness_high: 'Très heureux (≥80%)',
@@ -30,8 +28,12 @@ const TRIGGER_LABELS: Record<TriggerType, string> = {
   hygiene_good: 'Propre (≥80%)',
 };
 
-function getTriggerLabel(trigger: TriggerType): string {
-  return TRIGGER_LABELS[trigger] || trigger;
+function getTriggerLabel(trigger: TriggerType | string): string {
+  // Rétrocompat : anciens triggers eating_* affichés comme "Mange"
+  if (trigger === 'eating_started' || trigger === 'eating_in_progress' || trigger === 'eating_finished') {
+    return 'Mange';
+  }
+  return TRIGGER_LABELS[trigger as TriggerType] ?? trigger;
 }
 
 export function ClipDetailInfo({ clip }: ClipDetailInfoProps) {
@@ -70,6 +72,9 @@ export function ClipDetailInfo({ clip }: ClipDetailInfoProps) {
           <dt className="text-muted-foreground">Déclencheur automatique</dt>
           <dd className="text-foreground">
             {clip.trigger ? getTriggerLabel(clip.trigger) : getTriggerLabel('manual')}
+            {clip.trigger && clip.trigger !== 'manual' && (
+              <span className="text-muted-foreground"> — {getVariantLabel(clip.trigger, clip.variant ?? 1)}</span>
+            )}
           </dd>
           <dd className="text-xs text-muted-foreground mt-1">
             Plusieurs clips peuvent avoir le même trigger. Le système en choisira un au hasard.

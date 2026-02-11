@@ -63,9 +63,11 @@ export function buildPromptForEmotion(
   emotionLabel: string,
   characterContext?: string | null,
   customPrompt?: string | null,
-  variantPrompt?: string | null
+  variantPrompt?: string | null,
+  durationS?: number | null
 ): string {
   let base = '';
+  const effectiveDuration = durationS ?? XAI_VIDEO_DURATION_SECONDS;
 
   // Si un contexte de personnage est fourni, l'ajouter en préambule
   if (characterContext?.trim()) {
@@ -73,7 +75,7 @@ export function buildPromptForEmotion(
   }
 
   base +=
-    `Animation de ${XAI_VIDEO_DURATION_SECONDS} seconde${XAI_VIDEO_DURATION_SECONDS > 1 ? 's' : ''} exprimant uniquement l'émotion "${emotionLabel}" (${emotionKey}). ` +
+    `Animation de ${effectiveDuration} seconde${effectiveDuration > 1 ? 's' : ''} exprimant uniquement l'émotion "${emotionLabel}" (${emotionKey}). ` +
     `Pas de bras, pas de corps : on veut vraiment uniquement le visage, comme sur l'image de base. Cadrage serré sur le visage. ` +
     `Le personnage ne doit pas parler : pas de mouvements de bouche pour la parole, pas de dialogue. On veut seulement l'émotion (expression du visage, regard), pas la parole. ` +
     `Tu peux rester sur une animation simple (expression du visage uniquement) ou, si pertinent, ajouter des objets/accessoires pour illustrer l'émotion (ex: faim → manger, dormir → "zzzz"). Les artefacts ne sont pas obligatoires : une version basic sans objet convient très bien. ` +
@@ -100,6 +102,8 @@ export interface GenerateVideoOptions {
   /** Dimensions du personnage pour déduire aspect_ratio (imageWidth × imageHeight) */
   width?: number;
   height?: number;
+  /** Durée de la vidéo (secondes) */
+  durationS?: number;
 }
 
 export interface GenerateVideoResult {
@@ -125,7 +129,7 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<Gene
     const body: Record<string, unknown> = {
       model: 'grok-imagine-video',
       prompt: options.prompt,
-      duration: XAI_VIDEO_DURATION_SECONDS,
+      duration: options.durationS ?? XAI_VIDEO_DURATION_SECONDS,
       aspect_ratio: aspectRatio,
       resolution: '480p',
     };
