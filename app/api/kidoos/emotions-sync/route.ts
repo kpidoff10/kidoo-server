@@ -58,10 +58,13 @@ interface SyncFileEntry {
   emotionVideoId: string;
   mjpegUrl: string | null;
   idxUrl: string | null;
+  animUrl: string | null;
   /** Chemin sur la SD ESP32 pour video.mjpeg */
   localPathMjpeg: string;
   /** Chemin sur la SD ESP32 pour video.idx */
   localPathIdx: string;
+  /** Chemin sur la SD ESP32 pour video.anim (format lossless, prioritaire sur l'ESP32) */
+  localPathAnim: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -189,8 +192,10 @@ export async function GET(request: NextRequest) {
           emotionVideoId: video.id,
           mjpegUrl: video.binUrl,
           idxUrl: video.idxUrl,
+          animUrl: video.animUrl ?? null,
           localPathMjpeg: `${basePath}/video.mjpeg`,
           localPathIdx: `${basePath}/video.idx`,
+          localPathAnim: `${basePath}/video.anim`,
         });
       }
     }
@@ -202,6 +207,14 @@ export async function GET(request: NextRequest) {
     });
 
     const syncedAt = new Date().toISOString();
+
+    // Log pour diagnostic : si une seule émotion (ex. happy), l'ESP32 ne jouera que celle-ci
+    if (exportData.length <= 1) {
+      console.warn(
+        `[emotions-sync] characterId=${characterId}: seulement ${exportData.length} entrée(s) dans la config (clés: ${exportData.map((e) => e.key).join(', ') || 'aucune'}). ` +
+          "Les autres émotions n'ont pas de vidéo READY (binUrl+idxUrl). Relancer la génération MJPEG pour les autres clips."
+      );
+    }
 
     return createSuccessResponse({
       characterId,

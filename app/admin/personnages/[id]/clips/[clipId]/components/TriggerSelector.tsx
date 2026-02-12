@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { TriggerType } from '../../../../../lib/charactersApi';
+import { EMOTION_TRIGGERS, EMOTION_TRIGGER_CATEGORIES, getConditionDescription } from '@kidoo/shared';
 
 export interface TriggerSelectorProps {
   value: TriggerType | null | undefined;
@@ -9,55 +10,10 @@ export interface TriggerSelectorProps {
   disabled?: boolean;
 }
 
-/**
- * Options pour le sélecteur de trigger.
- * Les valeurs (value) doivent rester alignées avec kidoo-shared/emotions/triggers et l’ESP32.
- */
-const TRIGGER_OPTIONS: Array<{ value: TriggerType; label: string; description: string; category: string }> = [
-  { value: 'manual', label: 'Manuel', description: 'Pas de déclenchement automatique', category: 'Général' },
-
-  // Hunger
-  { value: 'hunger_critical', label: 'Faim critique', description: 'Quand la faim est ≤ 10%', category: 'Faim' },
-  { value: 'hunger_low', label: "J'ai faim", description: 'Quand la faim est ≤ 20%', category: 'Faim' },
-  { value: 'hunger_medium', label: 'Faim moyenne', description: 'Quand la faim est entre 40-60%', category: 'Faim' },
-
-  // Manger (un seul trigger, variants = Biberon / Gâteau / Pomme / Bonbon comme la faim)
-  { value: 'eating', label: 'Mange', description: 'Manger (mêmes variants que la faim)', category: 'Manger' },
-
-  // Happiness
-  { value: 'happiness_low', label: 'Triste', description: 'Quand le bonheur est ≤ 20%', category: 'Bonheur' },
-  { value: 'happiness_medium', label: 'Content', description: 'Quand le bonheur est entre 40-60%', category: 'Bonheur' },
-  { value: 'happiness_high', label: 'Très heureux', description: 'Quand le bonheur est ≥ 80%', category: 'Bonheur' },
-
-  // Health
-  { value: 'health_critical', label: 'Très malade', description: 'Quand la santé est ≤ 20%', category: 'Santé' },
-  { value: 'health_low', label: 'Malade', description: 'Quand la santé est ≤ 40%', category: 'Santé' },
-  { value: 'health_good', label: 'En bonne santé', description: 'Quand la santé est ≥ 80%', category: 'Santé' },
-
-  // Fatigue
-  { value: 'fatigue_high', label: 'Très fatigué', description: 'Quand la fatigue est ≥ 80%', category: 'Fatigue' },
-  { value: 'fatigue_low', label: 'Bien reposé', description: 'Quand la fatigue est ≤ 20%', category: 'Fatigue' },
-
-  // Hygiene
-  { value: 'hygiene_low', label: 'Sale', description: 'Quand la propreté est ≤ 20%', category: 'Hygiène' },
-  { value: 'hygiene_good', label: 'Propre', description: 'Quand la propreté est ≥ 80%', category: 'Hygiène' },
-];
-
-// Grouper les options par catégorie
-const CATEGORIES = [
-  'Général',
-  'Faim',
-  'Manger',
-  'Bonheur',
-  'Santé',
-  'Fatigue',
-  'Hygiène',
-];
-
 export function TriggerSelector({ value, onChange, disabled = false }: TriggerSelectorProps) {
   const [selectedValue, setSelectedValue] = useState<TriggerType>(value || 'manual');
 
-  const selectedOption = TRIGGER_OPTIONS.find((opt) => opt.value === selectedValue);
+  const selectedDef = EMOTION_TRIGGERS.find((t) => t.id === selectedValue);
 
   const handleChange = (newValue: TriggerType) => {
     setSelectedValue(newValue);
@@ -77,23 +33,21 @@ export function TriggerSelector({ value, onChange, disabled = false }: TriggerSe
           disabled={disabled}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {CATEGORIES.map((category) => (
+          {EMOTION_TRIGGER_CATEGORIES.map((category) => (
             <optgroup key={category} label={category}>
-              {TRIGGER_OPTIONS
-                .filter((opt) => opt.category === category)
-                .map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+              {EMOTION_TRIGGERS.filter((t) => t.category === category).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
             </optgroup>
           ))}
         </select>
       </div>
 
-      {selectedOption && (
+      {selectedDef && (
         <p className="text-sm text-muted-foreground italic">
-          {selectedOption.description}
+          {getConditionDescription(selectedDef.condition)}
         </p>
       )}
 

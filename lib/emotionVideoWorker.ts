@@ -1,33 +1,44 @@
 /**
  * Worker : génération MJPEG pour les EmotionVideos.
  *
- * Processus :
- * 1. Transcode le preview du clip source en MJPEG (toutes les frames)
- * 2. Parse les frames JPEG individuelles
- * 3. Réordonne/compose selon la timeline (intro + loop + exit)
- * 4. Produit un fichier MJPEG final uploadé sur R2
+ * On part uniquement des frames de la timeline (intro + loop + exit) :
+ * - type "full" + imageUrl : image extraite (timeline) → utilisée telle quelle
+ * - type "full" sans imageUrl : extraction de la frame à sourceFrameIndex depuis la vidéo (uniquement les indices référencés)
+ * - type "composite" : composition des régions/artefacts (images extraites)
+ * Résolution de sortie : 280x240 (mode normal, pas de zoom).
  */
 
 import { createHash } from 'crypto';
 import sharp from 'sharp';
 import { prisma } from './prisma';
-import { transcodeToMjpeg, downloadFile } from './clipWorker';
-import type { TranscodeOptions } from './clipWorker';
+import { downloadFile } from './clipWorker';
+import {
+  extractFrameAt,
+  encodeImageBufferToJpeg,
+  createBlackJpeg,
+} from './extractFrameFromVideo';
 import { uploadEmotionVideoFile } from './r2';
 import type { TimelineFrame, TimelineRegion, TimelineArtifact } from '@/types/emotion-video';
+import {
+  decodeJpegToRgb280x240,
+  encodeRgbFramesToAnim,
+} from './animFormat';
 
-// Dimensions landscape pour ESP32 (après rotation 90°)
-// +125% pour agrandir l'image : 280*2.25=630, 240*2.25=540
-const DEFAULT_WIDTH = 630;
-const DEFAULT_HEIGHT = 540;
-const JPEG_QUALITY = 100;  // Qualité maximale pour éliminer les artefacts de compression
-// Seuil RGB : tout pixel dont R, G et B sont en dessous est forcé à noir pur (0,0,0).
-// Réduit de 25 à 5 pour éviter les halos autour des contours blancs (yeux)
-const BLACK_THRESHOLD = 5;
+// Dimensions landscape pour ESP32 (après rotation 90°) — mode normal, pas de zoom
+const DEFAULT_WIDTH = 280;
+const DEFAULT_HEIGHT = 240;
+
+/** Détecte le format d'une image à partir des magic bytes (pour encodage ffmpeg). */
+function detectImageFormat(buffer: Buffer): 'png' | 'jpeg' {
+  if (buffer.length >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'png';
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xd8) return 'jpeg';
+  return 'jpeg';
+}
 
 export interface EmotionVideoWorkerResult {
   binUrl: string;
-  idxUrl: string;  // URL du fichier .idx pour l'ESP32
+  idxUrl: string;  // URL du fichier .idx pour l'ESP32 (MJPEG)
+  animUrl?: string; // URL du fichier .anim (format lossless palette + RLE)
   sha256: string;
   sizeBytes: number;
   totalFrames: number;
@@ -122,7 +133,7 @@ export function generateFrameIndex(mjpegBuffer: Buffer): Buffer {
 
 /**
  * Compose une frame composite (régions + artefacts sur fond noir) en JPEG.
- * Les images de régions/artefacts sont des PNGs pleine frame (240x280),
+ * Les images de régions/artefacts sont des PNGs pleine frame (280x240 landscape),
  * fond transparent, contenu déjà positionné à la bonne coordonnée.
  * On les superpose toutes à (0,0) sur un fond noir.
  */
@@ -189,12 +200,127 @@ async function compositeFrameToJpeg(
   // Note: Le forçage des noirs a été supprimé car il créait des halos autour des contours blancs.
   // Sharp gère maintenant la composition naturellement avec antialiasing préservé.
 
-  // Encoder en JPEG
-  return sharp(composited, {
+  // Encoder en PNG puis en JPEG via ffmpeg (yuvj420p, compatible JPEGDEC sur ESP32)
+  const pngBuffer = await sharp(composited, {
     raw: { width: info.width, height: info.height, channels: ch },
   })
-    .jpeg({ quality: JPEG_QUALITY })
+    .png()
     .toBuffer();
+  return encodeImageBufferToJpeg(pngBuffer, 'png');
+}
+
+/**
+ * Construit les frames JPEG de la timeline (même source que le MJPEG : clip + intro/loop/exit).
+ * Partagé par generateEmotionVideoMjpeg et generateEmotionVideoAnimOnly.
+ */
+async function buildOutputFrames(
+  emotionVideoId: string
+): Promise<{ outputFrames: Buffer[]; emotionVideo: Awaited<ReturnType<typeof prisma.emotionVideo.findUnique>>; totalFrames: number } | EmotionVideoWorkerError> {
+  const emotionVideo = await prisma.emotionVideo.findUnique({
+    where: { id: emotionVideoId },
+    include: {
+      sourceClip: {
+        select: {
+          id: true,
+          previewUrl: true,
+          workingPreviewUrl: true,
+          fps: true,
+          width: true,
+          height: true,
+          frames: true,
+          durationS: true,
+        },
+      },
+    },
+  });
+
+  if (!emotionVideo) {
+    return { error: 'EmotionVideo non trouvée' };
+  }
+
+  const effectivePreviewUrl =
+    emotionVideo.sourceClip?.workingPreviewUrl ?? emotionVideo.sourceClip?.previewUrl;
+  if (!effectivePreviewUrl) {
+    return { error: 'Le clip source n\'a pas de preview URL' };
+  }
+
+  const introTimeline = Array.isArray(emotionVideo.introTimeline)
+    ? (emotionVideo.introTimeline as unknown as TimelineFrame[])
+    : [];
+  const loopTimeline = Array.isArray(emotionVideo.loopTimeline)
+    ? (emotionVideo.loopTimeline as unknown as TimelineFrame[])
+    : [];
+  const exitTimeline = Array.isArray(emotionVideo.exitTimeline)
+    ? (emotionVideo.exitTimeline as unknown as TimelineFrame[])
+    : [];
+
+  const allTimelineFrames = [...introTimeline, ...loopTimeline, ...exitTimeline];
+  const totalFrames = allTimelineFrames.length;
+
+  if (totalFrames === 0) {
+    return { error: 'Aucune frame dans les timelines' };
+  }
+
+  const clipWidth = DEFAULT_WIDTH;
+  const clipHeight = DEFAULT_HEIGHT;
+  const clipFps = emotionVideo.sourceClip!.fps ?? 10;
+
+  const fullFrameIndicesNeeded = new Set<number>();
+  for (const f of allTimelineFrames) {
+    if (f.type === 'full' && !f.imageUrl && f.sourceFrameIndex != null) {
+      fullFrameIndicesNeeded.add(f.sourceFrameIndex);
+    }
+  }
+  const sourceFrameMap = new Map<number, Buffer>();
+  if (fullFrameIndicesNeeded.size > 0) {
+    for (const idx of fullFrameIndicesNeeded) {
+      try {
+        const pngBuffer = await extractFrameAt(effectivePreviewUrl, idx, clipFps);
+        const jpegBuffer = await encodeImageBufferToJpeg(pngBuffer, 'png', {
+          rotate: 90,
+          width: clipWidth,
+          height: clipHeight,
+        });
+        sourceFrameMap.set(idx, jpegBuffer);
+      } catch (err) {
+        console.warn(`[emotionVideoWorker] extractFrameAt(${idx}) failed:`, err);
+      }
+    }
+  }
+
+  const blackFrame = (): Promise<Buffer> => createBlackJpeg(clipWidth, clipHeight);
+  const outputFrames: Buffer[] = [];
+
+  for (const frame of allTimelineFrames) {
+    if (frame.type === 'full') {
+      if (frame.imageUrl) {
+        const imgBuffer = await downloadFile(frame.imageUrl);
+        const format = detectImageFormat(imgBuffer);
+        const jpegBuffer = await encodeImageBufferToJpeg(imgBuffer, format, {
+          width: clipWidth,
+          height: clipHeight,
+        });
+        outputFrames.push(jpegBuffer);
+      } else if (frame.sourceFrameIndex !== undefined) {
+        const srcBuf = sourceFrameMap.get(frame.sourceFrameIndex);
+        outputFrames.push(srcBuf ? srcBuf : await blackFrame());
+      } else {
+        outputFrames.push(await blackFrame());
+      }
+    } else if (frame.type === 'composite' && frame.regions) {
+      const composited = await compositeFrameToJpeg(
+        frame.regions,
+        frame.artifacts || [],
+        clipWidth,
+        clipHeight,
+      );
+      outputFrames.push(composited);
+    } else {
+      outputFrames.push(await blackFrame());
+    }
+  }
+
+  return { outputFrames, emotionVideo, totalFrames };
 }
 
 /**
@@ -205,145 +331,36 @@ export async function generateEmotionVideoMjpeg(
   emotionVideoId: string
 ): Promise<EmotionVideoWorkerResult | EmotionVideoWorkerError> {
   try {
-    // 1. Récupérer l'EmotionVideo avec le clip source
-    const emotionVideo = await prisma.emotionVideo.findUnique({
-      where: { id: emotionVideoId },
-      include: {
-        sourceClip: {
-          select: {
-            id: true,
-            previewUrl: true,
-            fps: true,
-            width: true,
-            height: true,
-            frames: true,
-            durationS: true,
-          },
-        },
-      },
-    });
+    const buildResult = await buildOutputFrames(emotionVideoId);
+    if ('error' in buildResult) return buildResult;
+    const { outputFrames, emotionVideo, totalFrames } = buildResult;
+    if (!emotionVideo) return { error: 'EmotionVideo non trouvée' };
 
-    if (!emotionVideo) {
-      return { error: 'EmotionVideo non trouvée' };
-    }
-
-    const effectivePreviewUrl =
-      emotionVideo.sourceClip?.workingPreviewUrl ?? emotionVideo.sourceClip?.previewUrl;
-    if (!effectivePreviewUrl) {
-      return { error: 'Le clip source n\'a pas de preview URL' };
-    }
-
-    // 2. Extraire les 3 timelines
-    const introTimeline = Array.isArray(emotionVideo.introTimeline)
-      ? (emotionVideo.introTimeline as unknown as TimelineFrame[])
-      : [];
-    const loopTimeline = Array.isArray(emotionVideo.loopTimeline)
-      ? (emotionVideo.loopTimeline as unknown as TimelineFrame[])
-      : [];
-    const exitTimeline = Array.isArray(emotionVideo.exitTimeline)
-      ? (emotionVideo.exitTimeline as unknown as TimelineFrame[])
-      : [];
-
-    const allTimelineFrames = [...introTimeline, ...loopTimeline, ...exitTimeline];
-    const totalFrames = allTimelineFrames.length;
-
-    if (totalFrames === 0) {
-      return { error: 'Aucune frame dans les timelines' };
-    }
-
-    // Résolution dynamique depuis le clip source (fallback sur les defaults)
-    const clipWidth = emotionVideo.sourceClip.width ?? DEFAULT_WIDTH;
-    const clipHeight = emotionVideo.sourceClip.height ?? DEFAULT_HEIGHT;
-    const clipFps = emotionVideo.sourceClip.fps ?? 10;
-    // Éviter le fallback 60 du clipWorker : calculer maxFrames depuis durationS si frames manquant
-    const clipFrames = emotionVideo.sourceClip.frames
-      ?? (emotionVideo.sourceClip.durationS
-        ? Math.ceil(emotionVideo.sourceClip.durationS * clipFps)
-        : 600); // 60s à 10fps en secours si aucune métadonnée
-
-    // Marge pour ne pas couper les dernières frames (arrondi, framerate variable)
-    const maxFramesWithBuffer = clipFrames + 20;
-    // maxDurationS : filet de sécurité si la vidéo est légèrement plus longue
-    const maxDurationS = emotionVideo.sourceClip.durationS
-      ? emotionVideo.sourceClip.durationS + 1
-      : undefined;
-
-    const transcodeOpts: TranscodeOptions = {
-      fps: clipFps,
-      maxFrames: maxFramesWithBuffer,
-      maxDurationS,
-      width: clipWidth,
-      height: clipHeight,
-    };
-
-    // 3. Transcoder le preview du clip source en MJPEG → toutes les frames sources
-    const sourceMjpegBuffer = await transcodeToMjpeg(effectivePreviewUrl, transcodeOpts);
-    const sourceFrames = parseJpegFrames(sourceMjpegBuffer);
-
-    if (sourceFrames.length === 0) {
-      return { error: 'Aucune frame extraite du clip source' };
-    }
-
-    // 4. Construire le MJPEG final en suivant la timeline
-    const outputFrames: Buffer[] = [];
-
-    for (const frame of allTimelineFrames) {
-      if (frame.type === 'full' && frame.sourceFrameIndex !== undefined) {
-        // Frame complète : utiliser le JPEG source
-        const srcIndex = frame.sourceFrameIndex;
-        if (srcIndex >= 0 && srcIndex < sourceFrames.length) {
-          outputFrames.push(sourceFrames[srcIndex]);
-        } else {
-          // Index hors limites : frame noire en fallback
-          const blackFrame = await sharp({
-            create: {
-              width: clipWidth,
-              height: clipHeight,
-              channels: 3,
-              background: { r: 0, g: 0, b: 0 },
-            },
-          })
-            .jpeg({ quality: JPEG_QUALITY })
-            .toBuffer();
-          outputFrames.push(blackFrame);
-        }
-      } else if (frame.type === 'composite' && frame.regions) {
-        // Frame composite : composer les régions avec Sharp
-        const composited = await compositeFrameToJpeg(
-          frame.regions,
-          frame.artifacts || [],
-          clipWidth,
-          clipHeight,
-        );
-        outputFrames.push(composited);
-      } else {
-        // Fallback : frame noire
-        const blackFrame = await sharp({
-          create: {
-            width: clipWidth,
-            height: clipHeight,
-            channels: 3,
-            background: { r: 0, g: 0, b: 0 },
-          },
-        })
-          .jpeg({ quality: JPEG_QUALITY })
-          .toBuffer();
-        outputFrames.push(blackFrame);
-      }
-    }
-
-    // 5. Concaténer toutes les frames JPEG en un flux MJPEG
+    // Concaténer toutes les frames JPEG en un flux MJPEG
     const mjpegBuffer = Buffer.concat(outputFrames);
 
     // 6. Générer le fichier d'index .idx
     const indexBuffer = generateFrameIndex(mjpegBuffer);
 
-    // 7. Calculer SHA256 et taille
+    // 7. Générer le fichier .anim (palette 8-bit + RLE) pour affichage pixel-perfect sur l'ESP32
+    const rgbFrames: Buffer[] = [];
+    for (const jpegFrame of outputFrames) {
+      try {
+        const rgb = await decodeJpegToRgb280x240(jpegFrame);
+        rgbFrames.push(rgb);
+      } catch (e) {
+        console.warn('[emotionVideoWorker] decodeJpegToRgb280x240 failed for one frame, using black:', e);
+        rgbFrames.push(Buffer.alloc(280 * 240 * 3));
+      }
+    }
+    const animBuffer = encodeRgbFramesToAnim(rgbFrames);
+
+    // 8. Calculer SHA256 et taille (MJPEG)
     const sha256 = createHash('sha256').update(mjpegBuffer).digest('hex');
     const sizeBytes = mjpegBuffer.length;
 
-    // 8. Upload sur R2 (vidéo + index)
-    const [binUrl, idxUrl] = await Promise.all([
+    // 9. Upload sur R2 (vidéo MJPEG + index + .anim)
+    const [binUrl, idxUrl, animUrl] = await Promise.all([
       uploadEmotionVideoFile(
         emotionVideoId,
         'video.mjpeg',
@@ -356,13 +373,55 @@ export async function generateEmotionVideoMjpeg(
         indexBuffer,
         'application/octet-stream'
       ),
+      uploadEmotionVideoFile(
+        emotionVideoId,
+        'video.anim',
+        animBuffer,
+        'application/octet-stream'
+      ),
     ]);
 
-    // 9. Calculer la durée
+    // 10. Calculer la durée
     const fps = emotionVideo.fps || 10;
     const durationS = totalFrames / fps;
 
-    return { binUrl, idxUrl, sha256, sizeBytes, totalFrames, durationS };
+    return { binUrl, idxUrl, animUrl, sha256, sizeBytes, totalFrames, durationS };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: message };
+  }
+}
+
+/**
+ * Génère uniquement le fichier .anim à partir des mêmes sources que le MJPEG (timeline + clip).
+ * Aucun MJPEG préalable requis : on reconstruit les frames puis on encode en .anim.
+ */
+export async function generateEmotionVideoAnimOnly(
+  emotionVideoId: string
+): Promise<{ animUrl: string } | EmotionVideoWorkerError> {
+  try {
+    const buildResult = await buildOutputFrames(emotionVideoId);
+    if ('error' in buildResult) return buildResult;
+    const { outputFrames } = buildResult;
+
+    const rgbFrames: Buffer[] = [];
+    for (const jpegFrame of outputFrames) {
+      try {
+        const rgb = await decodeJpegToRgb280x240(jpegFrame);
+        rgbFrames.push(rgb);
+      } catch (e) {
+        console.warn('[emotionVideoWorker] decodeJpegToRgb280x240 failed for one frame, using black:', e);
+        rgbFrames.push(Buffer.alloc(280 * 240 * 3));
+      }
+    }
+    const animBuffer = encodeRgbFramesToAnim(rgbFrames);
+    const animUrl = await uploadEmotionVideoFile(
+      emotionVideoId,
+      'video.anim',
+      animBuffer,
+      'application/octet-stream'
+    );
+    return { animUrl };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { error: message };

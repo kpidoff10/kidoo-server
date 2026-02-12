@@ -18,6 +18,7 @@ export interface EmotionVideo {
   status: 'DRAFT' | 'GENERATING' | 'READY' | 'FAILED' | 'DISABLED';
   binUrl: string | null;
   idxUrl: string | null;  // URL du fichier .idx
+  animUrl: string | null; // URL du fichier .anim (palette + RLE)
   sha256: string | null;
   sizeBytes: number | null;
   totalFrames: number | null;
@@ -96,6 +97,14 @@ const emotionVideosApi = {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Erreur lors de la génération de la vidéo');
+    return res.json() as Promise<{ success: true; data: EmotionVideo }>;
+  },
+
+  async generateAnim(id: string) {
+    const res = await fetch(`/api/admin/emotion-videos/${id}/generate-anim`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Erreur lors de la génération du .anim');
     return res.json() as Promise<{ success: true; data: EmotionVideo }>;
   },
 };
@@ -189,6 +198,22 @@ export function useGenerateEmotionVideo(id: string, clipId: string) {
   return useMutation({
     mutationFn: async () => {
       const res = await emotionVideosApi.generate(id);
+      if (!res.success) throw new Error('Erreur');
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(EMOTION_VIDEO_KEYS.detail(id), data);
+      queryClient.invalidateQueries({ queryKey: EMOTION_VIDEO_KEYS.byClip(clipId) });
+    },
+  });
+}
+
+export function useGenerateEmotionVideoAnim(id: string, clipId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await emotionVideosApi.generateAnim(id);
       if (!res.success) throw new Error('Erreur');
       return res.data;
     },

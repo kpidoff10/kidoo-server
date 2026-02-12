@@ -48,7 +48,9 @@ export interface TimelineFrame {
   frameIndex: number;        // Position dans la timeline (0, 1, 2...)
   type: 'full' | 'composite'; // Frame complète ou composée
 
-  // Si type === 'full' : copie complète d'une frame existante
+  // Si type === 'full' : image de la frame (extrait timeline) ou copie depuis la vidéo source
+  /** URL de l'image extraite pour cette frame (prioritaire sur la vidéo source). */
+  imageUrl?: string;
   sourceFrameIndex?: number;
 
   // Si type === 'composite' : composition custom de régions
