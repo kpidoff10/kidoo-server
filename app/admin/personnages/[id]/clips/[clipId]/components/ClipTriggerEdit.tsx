@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { CharacterClipDetail, TriggerType } from '../../../../../lib/charactersApi';
-import { getVariantLabel, getVariantOptions } from '../../../../../lib/getVariantLabel';
+import { getVariantLabel, getVariantOptions } from '@kidoo/shared';
 import { TriggerSelector } from './TriggerSelector';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';

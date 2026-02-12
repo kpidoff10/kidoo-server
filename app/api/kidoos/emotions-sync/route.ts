@@ -203,6 +203,14 @@ export async function GET(request: NextRequest) {
 
     const syncedAt = new Date().toISOString();
 
+    // Log pour diagnostic : si une seule émotion (ex. happy), l'ESP32 ne jouera que celle-ci
+    if (exportData.length <= 1) {
+      console.warn(
+        `[emotions-sync] characterId=${characterId}: seulement ${exportData.length} entrée(s) dans la config (clés: ${exportData.map((e) => e.key).join(', ') || 'aucune'}). ` +
+          "Les autres émotions n'ont pas de vidéo READY (binUrl+idxUrl). Relancer la génération MJPEG pour les autres clips."
+      );
+    }
+
     return createSuccessResponse({
       characterId,
       config: exportData,
