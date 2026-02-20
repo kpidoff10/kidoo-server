@@ -20,6 +20,7 @@ import {
   useCreateEmotionVideo,
   useUpdateEmotionVideo,
   useGenerateEmotionVideo,
+  useGenerateEmotionVideoAnim,
 } from '../../../../../../hooks/useEmotionVideos';
 
 const DEFAULT_FPS = 10;
@@ -123,6 +124,10 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
     clip.id
   );
   const generateEmotionVideoMutation = useGenerateEmotionVideo(
+    emotionVideoId ?? '',
+    clip.id
+  );
+  const generateAnimMutation = useGenerateEmotionVideoAnim(
     emotionVideoId ?? '',
     clip.id
   );
@@ -737,6 +742,15 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
         >
           {generateEmotionVideoMutation.isPending ? 'Génération...' : 'Générer le .mjpeg'}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={allFrames.length === 0 || !emotionVideoId || generateAnimMutation.isPending}
+          onClick={() => generateAnimMutation.mutate()}
+        >
+          {generateAnimMutation.isPending ? 'Génération .anim...' : 'Générer le .anim'}
+        </Button>
         {(emotionVideoWithFile?.binUrl ?? clip.fileUrl) && (
           <>
             <Button
@@ -768,6 +782,23 @@ export function ClipVideoCreation({ clip, targetWidth, targetHeight }: ClipVideo
                   download="video.idx"
                 >
                   📥 Télécharger .idx
+                </a>
+              </Button>
+            )}
+            {emotionVideoWithFile?.animUrl && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                asChild
+              >
+                <a
+                  href={emotionVideoWithFile.animUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download="video.anim"
+                >
+                  📥 Télécharger .anim
                 </a>
               </Button>
             )}

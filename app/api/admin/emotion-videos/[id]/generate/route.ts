@@ -57,13 +57,14 @@ export const POST = withAdminAuth(
         });
       }
 
-      // Succès : mettre à jour avec les résultats
+      // Succès : mettre à jour avec les résultats (MJPEG + .idx + .anim)
       const updated = await prisma.emotionVideo.update({
         where: { id },
         data: {
           status: 'READY',
           binUrl: result.binUrl,
           idxUrl: result.idxUrl,
+          animUrl: result.animUrl ?? undefined,
           sha256: result.sha256,
           sizeBytes: result.sizeBytes,
           totalFrames: result.totalFrames,
@@ -86,6 +87,7 @@ export const POST = withAdminAuth(
         status: updated.status,
         binUrl: updated.binUrl,
         idxUrl: updated.idxUrl,
+        animUrl: updated.animUrl ?? null,
         sha256: updated.sha256,
         sizeBytes: updated.sizeBytes,
         totalFrames: updated.totalFrames,

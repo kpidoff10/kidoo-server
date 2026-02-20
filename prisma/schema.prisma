@@ -140,6 +140,7 @@ model EmotionVideo {
   loopTimeline  Json
   totalFrames   Int?
   idxUrl        String?
+  animUrl       String?    // Format .anim (palette + RLE) pour ESP32 pixel-perfect
   emotion       Emotion    @relation(fields: [emotionId], references: [id], onDelete: Cascade)
   sourceClip    Clip       @relation(fields: [sourceClipId], references: [id], onDelete: Cascade)
 

@@ -17,7 +17,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "cross-env NODE_PATH=./node_modules tsx prisma/seed.ts",
-    "postinstall": "prisma generate && node scripts/generate-kidoo-model-ids.js"
+    "postinstall": "prisma generate && node scripts/generate-kidoo-model-ids.js",
+    "view-anim": "node scripts/view-anim.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
