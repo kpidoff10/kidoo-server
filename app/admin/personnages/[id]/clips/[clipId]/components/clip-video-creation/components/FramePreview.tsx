@@ -1,6 +1,6 @@
 'use client';
 
-import type { FaceRegions, ArtifactRegion } from '../../../../../../../lib/charactersApi';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
 
 interface FramePreviewProps {
   width?: number;

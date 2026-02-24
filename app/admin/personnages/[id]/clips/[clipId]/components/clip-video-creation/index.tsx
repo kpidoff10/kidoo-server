@@ -8,13 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { CharacterClipDetail, FaceRegions, ArtifactRegion } from '../../../../../../lib/charactersApi';
-import type { TimelineFrame, FrameAction } from '../../../../../../types/emotion-video';
+import type { CharacterClipDetail, FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
+import type { TimelineFrame, FrameAction } from '@/types/emotion-video';
 import { PreviewPanel } from './components/PreviewPanel';
 import { TimelineBar } from './components/TimelineBar';
 import { FramesDialog } from './components/FramesDialog';
 import { CompositeFrameDialog } from './components/CompositeFrameDialog';
-import type { TimelineRegion, TimelineArtifact } from '../../../../../../types/emotion-video';
+import type { TimelineRegion, TimelineArtifact } from '@/types/emotion-video';
 import {
   useEmotionVideosByClip,
   useCreateEmotionVideo,

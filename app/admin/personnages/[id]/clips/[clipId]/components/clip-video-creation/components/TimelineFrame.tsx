@@ -1,7 +1,7 @@
 'use client';
 
-import type { TimelineFrame as TimelineFrameType, AnimationPhase } from '../../../../../../../types/emotion-video';
-import type { FaceRegions, ArtifactRegion } from '../../../../../../../lib/charactersApi';
+import type { TimelineFrame as TimelineFrameType, AnimationPhase } from '@/types/emotion-video';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
 import { FramePreview } from './FramePreview';
 
 interface TimelineFrameProps {

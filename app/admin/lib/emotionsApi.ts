@@ -6,6 +6,7 @@ export interface Emotion {
   id: string;
   key: string;
   label: string;
+  promptCustom?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
-import type { FaceRegions, ArtifactRegion } from '../../../../lib/charactersApi';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
 import type { RegionKey } from '../constants';
 import {
   REGION_LABELS,

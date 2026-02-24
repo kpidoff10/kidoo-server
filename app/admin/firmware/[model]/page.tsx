@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { KidooModelId } from '@kidoo/shared';
-import { useQueryClient } from '@tanstack/react-query';
+import { queryClient } from '../../lib/queryClient';
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} o`;
@@ -167,7 +167,6 @@ function AddFirmwareForm({ modelId }: { modelId: KidooModelId }) {
   const [isZipUploading, setIsZipUploading] = useState(false);
   const createMutation = useCreateFirmware(modelId);
   const { uploadFirmware, isUploading, progress, error: uploadError, reset } = useFileUpload();
-  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -2,7 +2,7 @@
 
 import type { Ref } from 'react';
 import { useCallback, useRef } from 'react';
-import type { FaceRegions, ArtifactRegion } from '../../../../lib/charactersApi';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
 import type { RegionKey } from '../constants';
 import { expandRegionForPreview } from '../constants';
 

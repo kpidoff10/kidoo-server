@@ -257,7 +257,7 @@ export const PATCH = withAuth(async (
         };
 
         console.log('[DREAM-WAKEUP] Envoi configuration via PubNub:', JSON.stringify(pubnubMessage, null, 2));
-        await sendCommand(kidoo.macAddress, 'set-wakeup-config', pubnubMessage.params as Record<string, unknown>);
+        await sendCommand(kidoo.macAddress, 'set-wakeup-config', { params: pubnubMessage.params as Record<string, unknown> });
         console.log('[DREAM-WAKEUP] Configuration envoyée avec succès via PubNub');
       } catch (error) {
         console.error('[DREAM-WAKEUP] Erreur lors de l\'envoi PubNub:', error);

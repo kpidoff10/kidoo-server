@@ -1,6 +1,6 @@
 {
   "name": "kidoo-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
@@ -8,7 +8,7 @@
     "dev:webpack": "next dev --hostname 0.0.0.0 --webpack",
     "dev:3001:webpack": "next dev --hostname 0.0.0.0 -p 3001 --webpack",
     "prebuild": "node scripts/prepare-build.js",
-    "build": "next build --webpack",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 TEMP=.next/.tmp TMP=.next/.tmp next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "prisma generate && node scripts/generate-kidoo-model-ids.js",
@@ -66,6 +66,7 @@
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "chalk": "^5.6.2",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
     "eslint": "^9",

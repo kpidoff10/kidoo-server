@@ -84,7 +84,7 @@ export async function PATCH(
     }
 
     // Envoyer la commande via PubNub
-    const sent = await sendCommand(kidoo.macAddress, 'sleep-timeout', { value });
+    const sent = await sendCommand(kidoo.macAddress, 'sleep-timeout', { params: { value } });
 
     if (!sent) {
       return NextResponse.json(

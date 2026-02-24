@@ -91,7 +91,7 @@ export async function POST(
 
     // Envoyer la commande via PubNub
     const commandParams = delay ? { delay } : undefined;
-    const sent = await sendCommand(kidoo.macAddress, 'reboot', commandParams);
+    const sent = await sendCommand(kidoo.macAddress, 'reboot', { params: commandParams });
 
     if (!sent) {
       return NextResponse.json(

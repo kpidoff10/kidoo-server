@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import type { FaceRegions, ArtifactRegion } from '../../../../../../../lib/charactersApi';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
 import { FramePreview } from './FramePreview';
 
 interface PreviewPanelProps {

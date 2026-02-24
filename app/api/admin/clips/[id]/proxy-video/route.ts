@@ -4,6 +4,7 @@
  * Supporte les requêtes Range (nécessaire pour le seek vidéo).
  */
 
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAdminAuth, AdminAuthenticatedRequest } from '@/lib/withAdminAuth';
 
@@ -16,7 +17,7 @@ export const GET = withAdminAuth(
     });
     const videoUrl = clip?.workingPreviewUrl ?? clip?.previewUrl;
     if (!videoUrl) {
-      return new Response('Vidéo introuvable', { status: 404 });
+      return new NextResponse('Vidéo introuvable', { status: 404 });
     }
 
     const rangeHeader = request.headers.get('range');
@@ -27,7 +28,7 @@ export const GET = withAdminAuth(
 
     const res = await fetch(videoUrl, { headers: fetchHeaders });
     if (!res.ok) {
-      return new Response('Échec du chargement de la vidéo', { status: 502 });
+      return new NextResponse('Échec du chargement de la vidéo', { status: 502 });
     }
 
     const headers = new Headers();
@@ -40,11 +41,11 @@ export const GET = withAdminAuth(
       headers.set('content-range', res.headers.get('content-range') ?? '');
       const contentLength = res.headers.get('content-length');
       if (contentLength) headers.set('content-length', contentLength);
-      return new Response(res.body, { status: 206, headers });
+      return new NextResponse(res.body, { status: 206, headers });
     }
 
     const contentLength = res.headers.get('content-length');
     if (contentLength) headers.set('content-length', contentLength);
-    return new Response(res.body, { status: 200, headers });
+    return new NextResponse(res.body, { status: 200, headers });
   }
 );

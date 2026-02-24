@@ -39,7 +39,6 @@ const CORNER_STYLE_TO_API: Record<CornerStyle, 'rounded' | 'square'> = {
 function buildFaceRegionsFromRelation(
   rows: Array<{
     regionKey: FaceRegionKey;
-    frameIndex: number;
     x: number;
     y: number;
     w: number;

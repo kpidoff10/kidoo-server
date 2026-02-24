@@ -21,7 +21,7 @@ export const GET = withAdminAuth(
     try {
       const emotion = await prisma.emotion.findUnique({ where: { id } });
       if (!emotion) {
-        return createErrorResponse(EmotionErrors.NOT_FOUND, { status: 404 });
+        return createErrorResponse(EmotionErrors.NOT_FOUND, 404);
       }
       return createSuccessResponse({
         ...emotion,
@@ -30,7 +30,7 @@ export const GET = withAdminAuth(
       });
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'émotion:', error);
-      return createErrorResponse(EmotionErrors.INTERNAL_ERROR, {
+      return createErrorResponse(EmotionErrors.INTERNAL_ERROR, 500, {
         details: error instanceof Error ? error.message : undefined,
       });
     }
@@ -43,14 +43,14 @@ export const PATCH = withAdminAuth(
     try {
       const emotion = await prisma.emotion.findUnique({ where: { id } });
       if (!emotion) {
-        return createErrorResponse(EmotionErrors.NOT_FOUND, { status: 404 });
+        return createErrorResponse(EmotionErrors.NOT_FOUND, 404);
       }
 
       const body = await request.json();
       const parsed = updateEmotionSchema.safeParse(body);
       if (!parsed.success) {
         const first = parsed.error.issues[0];
-        return createErrorResponse(EmotionErrors.VALIDATION_ERROR, {
+        return createErrorResponse(EmotionErrors.VALIDATION_ERROR, 400, {
           message: first.message,
           field: String(first.path[0]),
         });
@@ -72,7 +72,7 @@ export const PATCH = withAdminAuth(
       });
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'émotion:', error);
-      return createErrorResponse(EmotionErrors.INTERNAL_ERROR, {
+      return createErrorResponse(EmotionErrors.INTERNAL_ERROR, 500, {
         details: error instanceof Error ? error.message : undefined,
       });
     }
@@ -85,13 +85,13 @@ export const DELETE = withAdminAuth(
     try {
       const emotion = await prisma.emotion.findUnique({ where: { id } });
       if (!emotion) {
-        return createErrorResponse(EmotionErrors.NOT_FOUND, { status: 404 });
+        return createErrorResponse(EmotionErrors.NOT_FOUND, 404);
       }
       await prisma.emotion.delete({ where: { id } });
       return createSuccessResponse({ id });
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'émotion:', error);
-      return createErrorResponse(EmotionErrors.INTERNAL_ERROR, {
+      return createErrorResponse(EmotionErrors.INTERNAL_ERROR, 500, {
         details: error instanceof Error ? error.message : undefined,
       });
     }

@@ -270,7 +270,7 @@ export function CharacterEmotionsTab({ characterId }: CharacterEmotionsTabProps)
                           ? 'Upload…'
                           : 'Ajouter un clip manuel (MP4)'}
                       </Button>
-                      {generateClipMutation.isError && generateClipMutation.variables === emotion.key && (
+                      {generateClipMutation.isError && generateClipMutation.variables?.emotionKey === emotion.key && (
                         <span className="text-sm text-destructive">{generateClipMutation.error?.message}</span>
                       )}
                       {uploadClipMutation.isError && uploadClipMutation.variables?.emotionKey === emotion.key && (

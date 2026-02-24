@@ -37,7 +37,7 @@ export function useCreateEmotion() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { key: string; label: string }) => {
+    mutationFn: async (input: { key: string; label: string; promptCustom?: string | null }) => {
       const res = await emotionsApi.create(input);
       if (!res.success) throw new Error(res.error);
       return res.data;

@@ -1,8 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import type { TimelineFrame as TimelineFrameType, AnimationPhase, FrameAction } from '../../../../../../../types/emotion-video';
-import type { FaceRegions, ArtifactRegion } from '../../../../../../../lib/charactersApi';
+import type { TimelineFrame as TimelineFrameType, AnimationPhase, FrameAction } from '@/types/emotion-video';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
 import { TimelineFrame } from './TimelineFrame';
 import { FrameActionsEditor } from './FrameActionsEditor';
 

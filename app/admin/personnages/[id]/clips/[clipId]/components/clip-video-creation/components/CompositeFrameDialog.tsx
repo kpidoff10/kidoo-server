@@ -8,8 +8,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import type { FaceRegions, ArtifactRegion } from '../../../../../../../lib/charactersApi';
-import type { TimelineRegion, TimelineArtifact } from '../../../../../../../types/emotion-video';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
+import type { TimelineRegion, TimelineArtifact } from '@/types/emotion-video';
 import { FramePreview } from './FramePreview';
 
 interface CompositeFrameDialogProps {
@@ -53,15 +53,21 @@ export function CompositeFrameDialog({
   }>({});
   const [selectedArtifacts, setSelectedArtifacts] = useState<TimelineArtifact[]>([]);
 
-  // Pré-remplir les régions et artefacts quand le dialog s'ouvre avec lastCompositeFrame
+  // Pré-remplir les régions et artefacts quand le dialog s'ouvre avec lastCompositeFrame.
+  // queueMicrotask évite l'appel setState synchrone dans l'effet (cascading renders).
   useEffect(() => {
     if (open && lastCompositeFrame) {
-      setSelectedRegions(lastCompositeFrame.regions || {});
-      setSelectedArtifacts(lastCompositeFrame.artifacts || []);
+      const regions = lastCompositeFrame.regions || {};
+      const artifacts = lastCompositeFrame.artifacts || [];
+      queueMicrotask(() => {
+        setSelectedRegions(regions);
+        setSelectedArtifacts(artifacts);
+      });
     } else if (!open) {
-      // Réinitialiser quand le dialog se ferme
-      setSelectedRegions({});
-      setSelectedArtifacts([]);
+      queueMicrotask(() => {
+        setSelectedRegions({});
+        setSelectedArtifacts([]);
+      });
     }
   }, [open, lastCompositeFrame]);
 
@@ -80,7 +86,7 @@ export function CompositeFrameDialog({
         y: region.y,
         w: region.w,
         h: region.h,
-        imageUrl: region.imageUrl,
+        imageUrl: region.imageUrl ?? '',
       },
     }));
   };
@@ -108,7 +114,7 @@ export function CompositeFrameDialog({
         y: artifact.y,
         w: artifact.w,
         h: artifact.h,
-        imageUrl: artifact.imageUrl,
+        imageUrl: artifact.imageUrl ?? '',
       },
     ]);
   };

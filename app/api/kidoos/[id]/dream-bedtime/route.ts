@@ -74,7 +74,7 @@ export const POST = withAuth(async (
 
     // Envoyer la commande appropriée
     const command = action === 'start' ? 'start-bedtime' : 'stop-bedtime';
-    const sent = await sendCommand(kidoo.macAddress, command);
+    const sent = await sendCommand(kidoo.macAddress, command as string);
     
     if (!sent) {
       return createErrorResponse('INTERNAL_ERROR', 500, {
@@ -376,7 +376,7 @@ export const PATCH = withAuth(async (
         };
 
         console.log('[DREAM-BEDTIME] Envoi configuration via PubNub:', JSON.stringify(pubnubMessage, null, 2));
-        await sendCommand(kidoo.macAddress, 'set-bedtime-config', pubnubMessage.params as Record<string, unknown>);
+        await sendCommand(kidoo.macAddress, 'set-bedtime-config', { params: pubnubMessage.params as Record<string, unknown> });
         console.log('[DREAM-BEDTIME] Configuration envoyée avec succès via PubNub');
       } catch (error) {
         console.error('[DREAM-BEDTIME] Erreur lors de l\'envoi PubNub:', error);

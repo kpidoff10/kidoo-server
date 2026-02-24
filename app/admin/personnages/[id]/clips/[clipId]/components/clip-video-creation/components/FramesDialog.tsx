@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { FaceRegions, ArtifactRegion } from '../../../../../../../lib/charactersApi';
+import type { FaceRegions, ArtifactRegion } from '@/app/admin/lib/charactersApi';
 import { REGION_LABELS } from '../../clip-face-regions-editor/constants';
 import type { RegionKey } from '../../clip-face-regions-editor/constants';
 
@@ -37,11 +37,14 @@ export function FramesDialog({
   const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
   const [reverseOrder, setReverseOrder] = useState(false);
 
-  // Réinitialiser la sélection quand le dialog s'ouvre
+  // Réinitialiser la sélection quand le dialog s'ouvre.
+  // queueMicrotask évite l'appel setState synchrone dans l'effet (cascading renders).
   useEffect(() => {
     if (open) {
-      setSelectedFrames(new Set());
-      setReverseOrder(false);
+      queueMicrotask(() => {
+        setSelectedFrames(new Set());
+        setReverseOrder(false);
+      });
     }
   }, [open]);
 

@@ -75,9 +75,9 @@ export const PATCH = withAdminAuth(
       }
 
       // Calculer les nouvelles timelines (en utilisant les existantes si non fournies)
-      const newIntro = body.introTimeline ?? (existing.introTimeline as TimelineFrame[]);
-      const newLoop = body.loopTimeline ?? (existing.loopTimeline as TimelineFrame[]);
-      const newExit = body.exitTimeline ?? (existing.exitTimeline as TimelineFrame[]);
+      const newIntro = body.introTimeline ?? (existing.introTimeline as unknown as TimelineFrame[]);
+      const newLoop = body.loopTimeline ?? (existing.loopTimeline as unknown as TimelineFrame[]);
+      const newExit = body.exitTimeline ?? (existing.exitTimeline as unknown as TimelineFrame[]);
 
       // Calculer le total de frames
       const totalFrames = newIntro.length + newLoop.length + newExit.length;

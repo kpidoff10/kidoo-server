@@ -32,7 +32,7 @@ export const GET = withAdminAuth(async (_request: AdminAuthenticatedRequest) => 
     });
   } catch (error) {
     console.error('Erreur lors de la récupération des émotions:', error);
-    return createErrorResponse(EmotionErrors.INTERNAL_ERROR, {
+    return createErrorResponse(EmotionErrors.INTERNAL_ERROR, 500, {
       details: error instanceof Error ? error.message : undefined,
     });
   }
@@ -45,7 +45,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
 
     if (!parsed.success) {
       const first = parsed.error.issues[0];
-      return createErrorResponse(EmotionErrors.VALIDATION_ERROR, {
+      return createErrorResponse(EmotionErrors.VALIDATION_ERROR, 400, {
         message: first.message,
         field: String(first.path[0]),
       });
@@ -55,7 +55,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
 
     const existing = await prisma.emotion.findUnique({ where: { key } });
     if (existing) {
-      return createErrorResponse(EmotionErrors.CONFLICT, {
+      return createErrorResponse(EmotionErrors.CONFLICT, 409, {
         message: `Une émotion avec la clé "${key}" existe déjà`,
       });
     }
@@ -74,7 +74,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
     );
   } catch (error) {
     console.error('Erreur lors de la création de l\'émotion:', error);
-    return createErrorResponse(EmotionErrors.INTERNAL_ERROR, {
+    return createErrorResponse(EmotionErrors.INTERNAL_ERROR, 500, {
       details: error instanceof Error ? error.message : undefined,
     });
   }

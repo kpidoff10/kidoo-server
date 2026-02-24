@@ -97,7 +97,7 @@ export const POST = withAdminAuth(async (request: AdminAuthenticatedRequest) => 
       },
     };
 
-    return createSuccessResponse(withISO, 201);
+    return createSuccessResponse(withISO, { status: 201 });
   } catch (error) {
     console.error('Erreur lors de la création de l\'EmotionVideo:', error);
     return createErrorResponse('INTERNAL_ERROR', 500, {

@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
 
   // Next.js 16 utilise Turbopack par défaut ; config vide pour éviter l’erreur
   // si on a une config webpack (ex. résolution kidoo-shared). Pour forcer webpack : npm run dev -- --webpack
+  // Contournement EPERM Windows : limiter le tracing au projet (évite scandir WinSAT) - prisma/prisma#27555
+  outputFileTracingRoot: path.resolve(__dirname),
   transpilePackages: ['@kidoo/shared'],
 
   turbopack: {
