@@ -239,3 +239,155 @@ export async function deleteFirmwareFile(path: string): Promise<void> {
     })
   );
 }
+
+// --- Character images ---
+
+const CHARACTER_IMAGE_EXT_ALLOWED = /\.(jpg|jpeg|png|webp|gif)$/i;
+
+/**
+ * Chemin R2 pour l'image par défaut d'un personnage
+ * Convention: characters/{characterId}/default.{ext}
+ */
+export function getCharacterImagePath(characterId: string, fileName: string): string {
+  const ext = CHARACTER_IMAGE_EXT_ALLOWED.exec(fileName)?.[1]?.toLowerCase() ?? 'jpg';
+  return `characters/${characterId}/default.${ext}`;
+}
+
+/**
+ * URL publique pour une image personnage (si R2_PUBLIC_URL configuré)
+ */
+export function getCharacterImagePublicUrl(path: string): string {
+  if (r2PublicUrl) {
+    return `${r2PublicUrl.replace(/\/$/, '')}/${path}`;
+  }
+  throw new Error('R2_PUBLIC_URL requis pour les images personnages (accès public)');
+}
+
+export interface CharacterImageUploadUrlResult {
+  uploadUrl: string;
+  path: string;
+  publicUrl: string;
+}
+
+/**
+ * Génère une URL signée pour upload PUT (image personnage)
+ */
+export async function createCharacterImageUploadUrl(
+  characterId: string,
+  fileName: string,
+  fileSize: number,
+  contentType: string = 'image/jpeg',
+  expiresIn: number = 3600
+): Promise<CharacterImageUploadUrlResult> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+
+  const path = getCharacterImagePath(characterId, fileName);
+  const publicUrl = getCharacterImagePublicUrl(path);
+
+  const command = new PutObjectCommand({
+    Bucket: MULTIMEDIA_BUCKET,
+    Key: path,
+    ContentLength: fileSize,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn });
+
+  return { uploadUrl, path, publicUrl };
+}
+
+// --- Emotion Video files (mjpeg) ---
+
+/**
+ * Chemin R2 pour un fichier emotion-video
+ * Convention: emotion-videos/{emotionVideoId}/{fileName}
+ */
+export function getEmotionVideoFilePath(emotionVideoId: string, fileName: string): string {
+  return `emotion-videos/${emotionVideoId}/${fileName}`;
+}
+
+/**
+ * URL publique pour un fichier emotion-video (si R2_PUBLIC_URL configuré)
+ */
+export function getEmotionVideoFilePublicUrl(path: string): string {
+  if (r2PublicUrl) {
+    return `${r2PublicUrl.replace(/\/$/, '')}/${path}`;
+  }
+  throw new Error('R2_PUBLIC_URL requis pour les emotion-videos (accès public)');
+}
+
+/**
+ * Upload un buffer vers R2 pour une emotion-video (mjpeg).
+ * Retourne l'URL publique du fichier.
+ */
+export async function uploadEmotionVideoFile(
+  emotionVideoId: string,
+  fileName: string,
+  body: Buffer,
+  contentType: string = 'application/octet-stream'
+): Promise<string> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  const path = getEmotionVideoFilePath(emotionVideoId, fileName);
+  const publicUrl = getEmotionVideoFilePublicUrl(path);
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: MULTIMEDIA_BUCKET,
+      Key: path,
+      Body: body,
+      ContentType: contentType,
+      ContentLength: body.length,
+    })
+  );
+  return publicUrl;
+}
+
+// --- Clip files (bin + preview) ---
+
+/**
+ * Chemin R2 pour un fichier clip
+ * Convention: clips/{clipId}/{fileName}
+ */
+export function getClipFilePath(clipId: string, fileName: string): string {
+  return `clips/${clipId}/${fileName}`;
+}
+
+/**
+ * URL publique pour un fichier clip (si R2_PUBLIC_URL configuré)
+ */
+export function getClipFilePublicUrl(path: string): string {
+  if (r2PublicUrl) {
+    return `${r2PublicUrl.replace(/\/$/, '')}/${path}`;
+  }
+  throw new Error('R2_PUBLIC_URL requis pour les clips (accès public)');
+}
+
+/**
+ * Upload un buffer vers R2 pour un clip (bin ou preview).
+ * Retourne l'URL publique du fichier.
+ */
+export async function uploadClipFile(
+  clipId: string,
+  fileName: string,
+  body: Buffer,
+  contentType: string = 'application/octet-stream'
+): Promise<string> {
+  if (!r2Client) {
+    throw new Error('R2 client non configuré');
+  }
+  const path = getClipFilePath(clipId, fileName);
+  const publicUrl = getClipFilePublicUrl(path);
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: MULTIMEDIA_BUCKET,
+      Key: path,
+      Body: body,
+      ContentType: contentType,
+      ContentLength: body.length,
+    })
+  );
+  return publicUrl;
+}

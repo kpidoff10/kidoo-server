@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "characters" ADD COLUMN     "imageHeight" INTEGER NOT NULL DEFAULT 280,
+ADD COLUMN     "imageWidth" INTEGER NOT NULL DEFAULT 240;

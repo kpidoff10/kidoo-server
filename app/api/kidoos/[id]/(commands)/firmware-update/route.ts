@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
+import { KidooCommandAction } from '@kidoo/shared';
 import { sendCommand, isPubNubConfigured, waitForFirmwareUpdateResult } from '@/lib/pubnub';
 import { firmwareUpdateCommandSchema } from '@/shared';
 
@@ -90,7 +91,10 @@ export async function POST(
       );
     }
 
-    const sent = await sendCommand(kidoo.macAddress, 'firmware-update', { version });
+    const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.FirmwareUpdate, {
+      params: { version },
+      kidooId: id,
+    });
 
     if (!sent) {
       return NextResponse.json(
@@ -104,7 +108,8 @@ export async function POST(
       kidoo.macAddress,
       version,
       OTA_RESPONSE_TIMEOUT_MS,
-      1500
+      1500,
+      { kidooId: id, action: KidooCommandAction.FirmwareUpdate }
     );
 
     if (result === null) {

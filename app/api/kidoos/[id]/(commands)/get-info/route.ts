@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
 import { sendCommand, isPubNubConfigured, waitForMessage } from '@/lib/pubnub';
+import { KidooCommandAction } from '@kidoo/shared';
 import { Kidoo, KidooConfigBasic } from '@kidoo/shared/prisma';
 
 // Timeout pour attendre la réponse de l'ESP32 (en ms)
@@ -72,21 +73,21 @@ export async function GET(
       return returnCachedData(kidoo, 'PubNub non configuré');
     }
 
-    // Envoyer la commande via PubNub
-    const sent = await sendCommand(kidoo.macAddress, 'get-info');
+    const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.GetInfo, { kidooId: id });
 
     if (!sent) {
       // Échec d'envoi, renvoyer les données de la base si disponibles
       return returnCachedData(kidoo, 'Échec de l\'envoi de la commande');
     }
 
-    // Attendre la réponse de l'ESP32 via l'API History
-    console.log(`[GET-INFO] Attente de la réponse pour ${kidoo.macAddress}...`);
-    const response = await waitForMessage(kidoo.macAddress, 'info', RESPONSE_TIMEOUT_MS);
+    const response = await waitForMessage(kidoo.macAddress, 'info', {
+      timeoutMs: RESPONSE_TIMEOUT_MS,
+      pollIntervalMs: 500,
+      kidooId: id,
+      action: KidooCommandAction.GetInfo,
+    });
 
     if (response) {
-      console.log(`[GET-INFO] Réponse reçue:`, response);
-      
       // Mettre à jour l'adresse MAC si elle est différente (corriger les erreurs d'enregistrement)
       if (response.mac && typeof response.mac === 'string') {
         // Nettoyer l'adresse MAC (enlever les : et -)
@@ -94,7 +95,6 @@ export async function GET(
         const currentMac = kidoo.macAddress?.replace(/[:-]/g, '').toUpperCase();
         
         if (currentMac !== cleanMac) {
-          console.log(`[GET-INFO] Mise à jour de l'adresse MAC: ${kidoo.macAddress} -> ${response.mac}`);
           await prisma.kidoo.update({
             where: { id: kidoo.id },
             data: { macAddress: response.mac },

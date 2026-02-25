@@ -6,10 +6,12 @@
  * 
  * @example
  * import { publishToKidoo } from '@/lib/pubnub';
- * 
- * // Envoyer une commande
- * await publishToKidoo('AABBCCDDEEFF', { action: 'brightness', value: 80 });
+ * import { KidooCommandAction } from '@kidoo/shared';
+ * await sendCommand(mac, KidooCommandAction.GetInfo, { kidooId: id });
  */
+
+import chalk from 'chalk';
+import { KidooCommandAction } from '@kidoo/shared';
 
 // Configuration PubNub depuis les variables d'environnement
 const PUBNUB_PUBLISH_KEY = process.env.PUBNUB_PUBLISH_KEY || '';
@@ -69,46 +71,26 @@ export async function publishToChannel(
   channel: string,
   message: Record<string, unknown> | string
 ): Promise<boolean> {
-  console.log(`[PUBNUB] Tentative de publication sur channel: ${channel}`);
-  console.log(`[PUBNUB] Message:`, message);
-  console.log(`[PUBNUB] PUBLISH_KEY configurée: ${PUBNUB_PUBLISH_KEY ? 'Oui (' + PUBNUB_PUBLISH_KEY.substring(0, 10) + '...)' : 'Non'}`);
-  console.log(`[PUBNUB] SUBSCRIBE_KEY configurée: ${PUBNUB_SUBSCRIBE_KEY ? 'Oui (' + PUBNUB_SUBSCRIBE_KEY.substring(0, 10) + '...)' : 'Non'}`);
-
   if (!isPubNubConfigured()) {
     console.warn('[PUBNUB] PubNub non configuré (clés manquantes)');
     return false;
   }
 
   try {
-    // Convertir le message en JSON si c'est un objet
-    const messageStr = typeof message === 'string' 
-      ? message 
-      : JSON.stringify(message);
-    
+    const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
     const encodedMessage = encodeMessage(messageStr);
-    
-    // Construire l'URL de publication
     const url = `https://${PUBNUB_ORIGIN}/publish/${PUBNUB_PUBLISH_KEY}/${PUBNUB_SUBSCRIBE_KEY}/0/${channel}/0/${encodedMessage}`;
-    
-    console.log(`[PUBNUB] URL: ${url}`);
-    
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: { 'Accept': 'application/json' },
     });
-
     const responseText = await response.text();
-    console.log(`[PUBNUB] Réponse (${response.status}): ${responseText}`);
 
     if (response.ok) {
-      console.log(`[PUBNUB] Message publié sur ${channel}`);
       return true;
-    } else {
-      console.error(`[PUBNUB] Erreur publication: ${response.status} - ${responseText}`);
-      return false;
     }
+    console.error(`[PUBNUB] Erreur publication: ${response.status} - ${responseText}`);
+    return false;
   } catch (error) {
     console.error('[PUBNUB] Erreur lors de la publication:', error);
     return false;
@@ -126,40 +108,38 @@ export async function publishToKidoo(
   message: Record<string, unknown> | string
 ): Promise<boolean> {
   const channel = getKidooChannel(macAddress);
-  console.log(`[PUBNUB] Publication sur channel: ${channel}`);
-  console.log(`[PUBNUB] MAC address reçue: ${macAddress}`);
-  const result = await publishToChannel(channel, message);
-  if (result) {
-    console.log(`[PUBNUB] Message publié avec succès sur ${channel}`);
-  } else {
-    console.error(`[PUBNUB] Échec de la publication sur ${channel}`);
-  }
-  return result;
+  return publishToChannel(channel, message);
+}
+
+export interface SendCommandOptions {
+  /** Paramètres de la commande envoyés à l'ESP */
+  params?: Record<string, unknown>;
+  /** kidooId pour les logs */
+  kidooId?: string;
 }
 
 /**
  * Envoie une commande à un Kidoo
  * @param macAddress L'adresse MAC du Kidoo
- * @param action Le nom de l'action (ex: 'brightness', 'reboot')
- * @param params Les paramètres de l'action
+ * @param action Le nom de l'action (ex: 'brightness', 'get-info')
+ * @param opts params (payload) et/ou kidooId (logs)
  * @returns true si la publication réussit
  */
 export async function sendCommand(
   macAddress: string,
   action: string,
-  params?: Record<string, unknown>
+  opts?: SendCommandOptions
 ): Promise<boolean> {
+  const params = opts?.params ?? {};
   const message = {
     action,
     ...params,
     timestamp: Date.now(),
   };
-  
   const channel = getKidooChannel(macAddress);
-  console.log(`[PUBNUB] Envoi commande "${action}" sur channel: ${channel}`);
-  console.log(`[PUBNUB] MAC address reçue: ${macAddress}`);
-  console.log(`[PUBNUB] Message:`, JSON.stringify(message));
-  
+  const label = opts?.kidooId ? 'kidooId' : 'channel';
+  const value = opts?.kidooId ?? channel;
+  console.log('[PUBNUB]', chalk.blue('Envoyé'), 'action:', chalk.green(action), `${label}:`, chalk.green(value));
   return publishToKidoo(macAddress, message);
 }
 
@@ -187,21 +167,14 @@ export async function fetchHistory(
   }
 
   try {
-    // API History de PubNub avec include_token pour avoir les timetokens
-    // Note: "start" = timetoken le plus récent (exclusif), "end" = timetoken le plus ancien (exclusif)
-    // Pour récupérer les messages APRÈS un timetoken, on utilise "end" comme borne inférieure
     let url = `https://${PUBNUB_ORIGIN}/v2/history/sub-key/${PUBNUB_SUBSCRIBE_KEY}/channel/${channel}?count=${count}&include_token=true`;
-    
-    // Si on a un timetoken, ne récupérer que les messages APRÈS celui-ci
     if (afterTimetoken) {
       url += `&end=${afterTimetoken}`;
     }
-    
+
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: { 'Accept': 'application/json' },
     });
 
     if (!response.ok) {
@@ -210,23 +183,54 @@ export async function fetchHistory(
     }
 
     const data = await response.json();
-    
-    console.log(`[PUBNUB] History raw response:`, JSON.stringify(data, null, 2));
-    
-    // Format de réponse PubNub History avec include_token:
-    // [[{message: {...}, timetoken: "..."}, ...], startTimetoken, endTimetoken]
+
+    // Format PubNub: [[msg1, msg2, ...], startTimetoken, endTimetoken]
     if (Array.isArray(data) && Array.isArray(data[0])) {
-      const messages = data[0] as { message: Record<string, unknown>; timetoken: string }[];
-      console.log(`[PUBNUB] Parsed ${messages.length} messages from history`);
-      return messages;
+      const rawMessages = data[0] as unknown[];
+      const endTimetoken = typeof data[2] === 'string' ? data[2] : String(data[2] ?? '');
+      return rawMessages.map((msg) => ({
+        message: (typeof msg === 'object' && msg !== null && 'message' in msg)
+          ? (msg as { message: unknown }).message
+          : msg,
+        timetoken: endTimetoken,
+      })) as { message: Record<string, unknown>; timetoken: string }[];
     }
-    
-    console.log(`[PUBNUB] Unexpected history format`);
+
+    console.log('[PUBNUB] Unexpected history format');
     return null;
   } catch (error) {
     console.error('[PUBNUB] Erreur lors de la récupération de l\'historique:', error);
     return null;
   }
+}
+
+/**
+ * Récupère le dernier message env dans l'historique (ESP publie quand temp/humidité change)
+ * @param macAddress L'adresse MAC du Kidoo
+ * @returns Le message env ou null si non trouvé
+ */
+export async function getLatestEnvFromHistory(
+  macAddress: string
+): Promise<Record<string, unknown> | null> {
+  const channel = getKidooChannel(macAddress);
+  const history = await fetchHistory(channel, 20);
+  if (!history || history.length === 0) return null;
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    let msg = history[i].message;
+    if (typeof msg === 'string') {
+      try {
+        const normalized = (msg as string).replace(/:nan\b/g, ':null');
+        msg = JSON.parse(normalized) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+    }
+    if (msg && typeof msg === 'object' && msg.type === 'env') {
+      return msg as Record<string, unknown>;
+    }
+  }
+  return null;
 }
 
 /**
@@ -245,63 +249,70 @@ export async function fetchKidooHistory(
   return history?.map(item => item.message) ?? null;
 }
 
+export interface WaitForMessageOptions {
+  /** Timeout en ms (défaut: 5000) */
+  timeoutMs?: number;
+  /** Intervalle de polling en ms (défaut: 500) */
+  pollIntervalMs?: number;
+  /** Pour les logs */
+  kidooId?: string;
+  /** Pour les logs */
+  action?: KidooCommandAction;
+}
+
 /**
  * Attend un message de type spécifique sur un channel avec timeout
  * @param macAddress L'adresse MAC du Kidoo
- * @param messageType Le type de message attendu (ex: 'info')
- * @param timeoutMs Timeout en millisecondes (défaut: 5000)
- * @param pollIntervalMs Intervalle de polling (défaut: 500)
+ * @param messageType Le type de message attendu (ex: 'info', 'env')
+ * @param opts timeoutMs, pollIntervalMs, kidooId, action
  * @returns Le message trouvé ou null si timeout
  */
 export async function waitForMessage(
   macAddress: string,
   messageType: string,
-  timeoutMs: number = 5000,
-  pollIntervalMs: number = 500
+  opts?: WaitForMessageOptions
 ): Promise<Record<string, unknown> | null> {
+  const timeoutMs = opts?.timeoutMs ?? 5000;
+  const pollIntervalMs = opts?.pollIntervalMs ?? 500;
   const startTime = Date.now();
   const channel = getKidooChannel(macAddress);
-  
-  // Récupérer le dernier timetoken pour ne chercher que les NOUVEAUX messages
+
   const initialHistory = await fetchHistory(channel, 1);
   let afterTimetoken: string | undefined;
-  
+
   if (initialHistory && initialHistory.length > 0) {
-    // Utiliser le timetoken du dernier message comme point de départ
-    // Les messages sont retournés du plus ancien au plus récent, donc [0] est le plus récent quand count=1
     afterTimetoken = initialHistory[0].timetoken;
-    console.log(`[PUBNUB] Timetoken de départ: ${afterTimetoken}`);
   }
-  
+
   while (Date.now() - startTime < timeoutMs) {
-    // Attendre avant de poll
     await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
-    
-    // Récupérer les messages APRÈS le timetoken de départ
     const messages = await fetchHistory(channel, 10, afterTimetoken);
-    
+
     if (messages && messages.length > 0) {
-      console.log(`[PUBNUB] ${messages.length} nouveau(x) message(s) trouvé(s)`);
-      
-      // Les messages sont retournés du plus ancien au plus récent
-      // On cherche le DERNIER message du type attendu (le plus récent)
       for (let i = messages.length - 1; i >= 0; i--) {
         const item = messages[i];
-        const msg = item.message;
+        let msg = item.message;
+        if (typeof msg === 'string') {
+          try {
+            const normalized = (msg as string).replace(/:nan\b/g, ':null');
+            msg = JSON.parse(normalized) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+        }
         if (msg && typeof msg === 'object' && msg.type === messageType) {
-          console.log(`[PUBNUB] Message '${messageType}' trouvé (timetoken: ${item.timetoken})`);
-          return msg;
+          return msg as Record<string, unknown>;
         }
       }
-      
-      // Mettre à jour le timetoken pour la prochaine itération
-      // Le dernier message de la liste est le plus récent
       afterTimetoken = messages[messages.length - 1].timetoken;
     }
   }
-  
-  console.log(`[PUBNUB] Timeout après ${timeoutMs}ms`);
-  return null; // Timeout
+
+  if (opts?.kidooId) {
+    const actionVal = opts.action ?? '?';
+    console.log('[PUBNUB] Timeout', 'action:', chalk.red(actionVal), 'kidooId:', chalk.red(opts.kidooId));
+  }
+  return null;
 }
 
 /**
@@ -311,13 +322,15 @@ export async function waitForMessage(
  * @param version Version cible (pour filtrer les messages)
  * @param timeoutMs Timeout en ms (ex: 5 min). Au-delà, retourne null.
  * @param pollIntervalMs Intervalle de poll (ex: 1500 ms)
+ * @param opts kidooId et action optionnels pour les logs
  * @returns { status: 'done', version } | { status: 'failed', error } | null (timeout)
  */
 export async function waitForFirmwareUpdateResult(
   macAddress: string,
   version: string,
   timeoutMs: number = 5 * 60 * 1000,
-  pollIntervalMs: number = 1500
+  pollIntervalMs: number = 1500,
+  opts?: { kidooId?: string; action?: KidooCommandAction }
 ): Promise<{ status: 'done'; version: string } | { status: 'failed'; error: string } | null> {
   const startTime = Date.now();
   const channel = getKidooChannel(macAddress);
@@ -327,7 +340,6 @@ export async function waitForFirmwareUpdateResult(
 
   if (initialHistory && initialHistory.length > 0) {
     afterTimetoken = initialHistory[0].timetoken;
-    console.log(`[PUBNUB] Firmware-update: timetoken de départ: ${afterTimetoken}`);
   }
 
   while (Date.now() - startTime < timeoutMs) {
@@ -338,33 +350,39 @@ export async function waitForFirmwareUpdateResult(
     if (messages && messages.length > 0) {
       for (let i = messages.length - 1; i >= 0; i--) {
         const item = messages[i];
-        const msg = item.message;
+        let msg = item.message;
+        if (typeof msg === 'string') {
+          try {
+            const normalized = (msg as string).replace(/:nan\b/g, ':null');
+            msg = JSON.parse(normalized) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+        }
         if (!msg || typeof msg !== 'object') continue;
         const msgType = msg.type as string | undefined;
         const msgVersion = (msg.version as string) ?? '';
         const firmwareVersion = (msg.firmwareVersion as string) ?? '';
 
         if (msgType === 'firmware-update-done' && msgVersion === version) {
-          console.log(`[PUBNUB] firmware-update-done reçu (version: ${msgVersion})`);
           return { status: 'done', version: msgVersion };
         }
         if (msgType === 'firmware-update-failed' && msgVersion === version) {
           const error = (msg.error as string) ?? 'Erreur inconnue';
-          console.log(`[PUBNUB] firmware-update-failed reçu: ${error}`);
           return { status: 'failed', error };
         }
-        // Fallback: après redémarrage, un get-info renvoie type "info" avec firmwareVersion
         if (msgType === 'info' && firmwareVersion === version) {
-          console.log(`[PUBNUB] firmware-update: fallback info avec firmwareVersion=${firmwareVersion}`);
           return { status: 'done', version: firmwareVersion };
         }
       }
-      // Avancer le curseur vers le message le plus récent pour le prochain poll
       afterTimetoken = messages[0].timetoken;
     }
   }
 
-  console.log(`[PUBNUB] Firmware-update: timeout après ${timeoutMs}ms`);
+  if (opts?.kidooId) {
+    const actionVal = opts.action ?? 'firmware-update';
+    console.log('[PUBNUB] Timeout firmware', 'action:', chalk.red(actionVal), 'kidooId:', chalk.red(opts.kidooId));
+  }
   return null;
 }
 
@@ -374,28 +392,28 @@ export const Commands = {
    * Change la luminosité d'un Kidoo
    */
   brightness: (macAddress: string, value: number): Promise<boolean> => {
-    return sendCommand(macAddress, 'brightness', { value });
+    return sendCommand(macAddress, 'brightness', { params: { value } });
   },
 
   /**
    * Change le timeout de veille
    */
   sleepTimeout: (macAddress: string, value: number): Promise<boolean> => {
-    return sendCommand(macAddress, 'sleep-timeout', { value });
+    return sendCommand(macAddress, 'sleep-timeout', { params: { value } });
   },
 
   /**
    * Redémarre un Kidoo
    */
   reboot: (macAddress: string, delayMs?: number): Promise<boolean> => {
-    return sendCommand(macAddress, 'reboot', delayMs ? { delay: delayMs } : undefined);
+    return sendCommand(macAddress, 'reboot', delayMs ? { params: { delay: delayMs } } : undefined);
   },
 
   /**
    * Lance une mise à jour firmware OTA vers une version cible
    */
   firmwareUpdate: (macAddress: string, version: string): Promise<boolean> => {
-    return sendCommand(macAddress, 'firmware-update', { version });
+    return sendCommand(macAddress, KidooCommandAction.FirmwareUpdate, { params: { version } });
   },
 
   /**

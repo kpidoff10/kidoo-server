@@ -32,7 +32,8 @@ export function AdminLoginForm({
     handleSubmit,
     formState: { errors },
   } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema as Parameters<typeof zodResolver>[0]),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- contournement Zod v4 + zodResolver (type instantiation excessively deep)
+    resolver: zodResolver(loginSchema as any),
     defaultValues: { email: '', password: '' },
   });
 

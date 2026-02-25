@@ -1,0 +1,6 @@
+export const EmotionErrors = {
+  VALIDATION_ERROR: 'EMOTION_VALIDATION_ERROR',
+  NOT_FOUND: 'EMOTION_NOT_FOUND',
+  CONFLICT: 'EMOTION_CONFLICT', // key already exists
+  INTERNAL_ERROR: 'EMOTION_INTERNAL_ERROR',
+} as const;

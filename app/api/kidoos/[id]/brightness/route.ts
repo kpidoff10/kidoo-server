@@ -74,7 +74,7 @@ export const PATCH = withAuth(async (
     // Envoyer la commande via PubNub pour mise à jour en temps réel
     if (isPubNubConfigured() && kidoo.macAddress) {
       try {
-        const sent = await sendCommand(kidoo.macAddress, 'brightness', { value: brightness });
+        const sent = await sendCommand(kidoo.macAddress, 'brightness', { params: { value: brightness } });
         
         if (!sent) {
           console.error('[BRIGHTNESS] Échec de l\'envoi PubNub');

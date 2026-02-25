@@ -12,11 +12,12 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
+import { KidooCommandAction } from '@kidoo/shared';
 import { sendCommand, isPubNubConfigured, waitForMessage } from '@/lib/pubnub';
 import { KidooErrors } from '../errors';
 
 // Timeout pour attendre la réponse de l'ESP32 (en ms)
-const RESPONSE_TIMEOUT_MS = 3000;
+const RESPONSE_TIMEOUT_MS = 5000;
 
 /**
  * GET /api/kidoos/[id]/check-online
@@ -65,9 +66,7 @@ export const GET = withAuth(async (
       );
     }
 
-    // Envoyer la commande get-info via PubNub
-    console.log(`[CHECK-ONLINE] MAC address en base: ${kidoo.macAddress}`);
-    const sent = await sendCommand(kidoo.macAddress, 'get-info');
+    const sent = await sendCommand(kidoo.macAddress, 'get-info', { kidooId: id });
 
     if (!sent) {
       // Échec d'envoi, considérer comme hors ligne
@@ -83,18 +82,18 @@ export const GET = withAuth(async (
       );
     }
 
-    // Attendre la réponse de l'ESP32 via l'API History
-    // Note: Si l'adresse MAC en base est incorrecte (BLE au lieu de WiFi), 
-    // on essaie aussi avec l'adresse MAC de la réponse si elle est différente
-    console.log(`[CHECK-ONLINE] Attente de la réponse pour ${kidoo.macAddress}...`);
-    const response = await waitForMessage(kidoo.macAddress, 'info', RESPONSE_TIMEOUT_MS);
+    const response = await waitForMessage(kidoo.macAddress, 'info', {
+      timeoutMs: RESPONSE_TIMEOUT_MS,
+      pollIntervalMs: 500,
+      kidooId: id,
+      action: KidooCommandAction.GetInfo,
+    });
     
     // Si pas de réponse et que l'adresse MAC pourrait être incorrecte, 
     // on essaie de chercher sur tous les channels récents (fallback)
     // (Cette logique sera améliorée si nécessaire)
 
     if (response) {
-      console.log(`[CHECK-ONLINE] Réponse reçue, Kidoo en ligne`);
       
       // Mettre à jour l'adresse MAC si elle est différente (corriger les erreurs d'enregistrement)
       const updateData: { isConnected: boolean; lastConnected: Date; macAddress?: string } = {
@@ -133,7 +132,6 @@ export const GET = withAuth(async (
     }
 
     // Timeout - Kidoo hors ligne
-    console.log(`[CHECK-ONLINE] Timeout, Kidoo hors ligne`);
     await prisma.kidoo.update({
       where: { id },
       data: {

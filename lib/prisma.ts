@@ -7,9 +7,19 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Créer l'adapter PostgreSQL avec la DATABASE_URL
-const connectionString = process.env.DATABASE_URL;
+let connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error('DATABASE_URL is not defined in environment variables');
+}
+
+// Normaliser sslmode pour éviter le warning pg v9 (prefer/require/verify-ca → verify-full)
+// https://www.postgresql.org/docs/current/libpq-ssl.html
+const deprecatedSslModes = ['prefer', 'require', 'verify-ca'];
+for (const mode of deprecatedSslModes) {
+  connectionString = connectionString.replace(
+    new RegExp(`sslmode=${mode}(?=&|$)`, 'gi'),
+    'sslmode=verify-full'
+  );
 }
 
 const pool = new Pool({ connectionString });
@@ -21,7 +31,7 @@ export const prisma =
     adapter,
     log:
       process.env.NODE_ENV === 'development'
-        ? ['query', 'error', 'warn']
+        ? ['error', 'warn']
         : ['error'],
   });
 

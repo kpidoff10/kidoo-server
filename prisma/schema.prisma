@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "../../kidoo-shared/prisma"
@@ -10,16 +7,222 @@ datasource db {
   provider = "postgresql"
 }
 
-enum TagType {
-  MUSIC
-  STORY
-  SOUND
+model Character {
+  id               String               @id @default(uuid())
+  name             String?
+  defaultImageUrl  String?
+  sex              CharacterSex
+  personality      CharacterPersonality
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  stylePrompt      String?
+  imageHeight      Int                  @default(240)
+  imageWidth       Int                  @default(280)
+  characterContext String?
+  clips            Clip[]
+  emotionDevices   EmotionDevice[]
+  rules            Rule[]
+
+  @@map("characters")
 }
 
-// Modèles Kidoo (aligné avec KIDOO_MODELS dans kidoo-shared)
-enum KidooModel {
-  basic
-  dream
+model Emotion {
+  id               String            @id @default(uuid())
+  key              String            @unique
+  label            String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  promptCustom     String?
+  clips            Clip[]
+  deviceClipCaches DeviceClipCache[]
+  emotionVideos    EmotionVideo[]
+
+  @@map("emotions")
+}
+
+model Clip {
+  id                String            @id @default(uuid())
+  characterId       String
+  emotionId         String
+  status            ClipStatus        @default(DRAFT)
+  fileUrl           String?
+  sha256            String?
+  sizeBytes         Int?
+  width             Int?
+  height            Int?
+  fps               Int?
+  frames            Int?
+  durationS         Float?
+  prompt            String?
+  modelName         String?
+  previewUrl        String?
+  weight            Int               @default(100)
+  tags              String[]          @default([])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  xaiJobId          String?
+  loopStartFrame    Int?
+  loopEndFrame      Int?
+  workingPreviewUrl String?
+  variantPrompt     String?
+  trigger           String?           @default("manual")
+  variant           Int               @default(1)
+  artifacts         ClipArtifact[]
+  faceRegions       ClipFaceRegion[]
+  character         Character         @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  emotion           Emotion           @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+  deviceClipCaches  DeviceClipCache[]
+  emotionVideos     EmotionVideo[]
+
+  @@index([characterId])
+  @@index([emotionId])
+  @@index([characterId, emotionId])
+  @@index([status])
+  @@map("clips")
+}
+
+model ClipArtifact {
+  id          String      @id @default(uuid())
+  clipId      String
+  frameIndex  Int         @default(0)
+  name        String
+  x           Float
+  y           Float
+  w           Float
+  h           Float
+  cornerStyle CornerStyle @default(ROUNDED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  imageUrl    String?
+  clip        Clip        @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@index([clipId])
+  @@map("clip_artifacts")
+}
+
+model ClipFaceRegion {
+  id          String        @id @default(uuid())
+  clipId      String
+  regionKey   FaceRegionKey
+  x           Float
+  y           Float
+  w           Float
+  h           Float
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  frameIndex  Int           @default(0)
+  cornerStyle CornerStyle   @default(ROUNDED)
+  imageUrl    String?
+  clip        Clip          @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@unique([clipId, regionKey, frameIndex])
+  @@index([clipId])
+  @@map("clip_face_regions")
+}
+
+model EmotionVideo {
+  id            String     @id @default(uuid())
+  emotionId     String
+  sourceClipId  String
+  name          String?
+  fps           Int        @default(10)
+  width         Int        @default(240)
+  height        Int        @default(280)
+  status        ClipStatus @default(DRAFT)
+  binUrl        String?
+  sha256        String?
+  sizeBytes     Int?
+  durationS     Float?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  exitTimeline  Json
+  introTimeline Json
+  loopTimeline  Json
+  totalFrames   Int?
+  idxUrl        String?
+  animUrl       String?    // Format .anim (palette + RLE) pour ESP32 pixel-perfect
+  emotion       Emotion    @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+  sourceClip    Clip       @relation(fields: [sourceClipId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceClipId, emotionId])
+  @@index([emotionId])
+  @@index([sourceClipId])
+  @@index([status])
+  @@map("emotion_videos")
+}
+
+model EmotionDevice {
+  id               String            @id @default(uuid())
+  characterId      String
+  pubnubChannel    String?
+  mode             EmotionDeviceMode @default(NORMAL)
+  isCharging       Boolean           @default(false)
+  lastSeenAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deviceClipCaches DeviceClipCache[]
+  character        Character         @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@map("emotion_devices")
+}
+
+model DeviceClipCache {
+  deviceId     String
+  emotionId    String
+  slot         Int
+  clipId       String
+  lastSeenAt   DateTime      @default(now())
+  lastPlayedAt DateTime?
+  clip         Clip          @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  device       EmotionDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  emotion      Emotion       @relation(fields: [emotionId], references: [id], onDelete: Cascade)
+
+  @@id([deviceId, emotionId, slot])
+  @@index([deviceId])
+  @@index([emotionId])
+  @@index([clipId])
+  @@map("device_clip_caches")
+}
+
+model Rule {
+  id          String     @id @default(uuid())
+  characterId String?
+  enabled     Boolean    @default(true)
+  priority    Int        @default(0)
+  cooldownMs  Int        @default(0)
+  eventType   EventType
+  eventKey    EventKey
+  conditions  Json?
+  response    Json
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  character   Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([enabled, eventType, eventKey])
+  @@map("rules")
+}
+
+model ObjectType {
+  id          String       @id @default(uuid())
+  key         String       @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  rfidObjects RfidObject[]
+
+  @@map("object_types")
+}
+
+model RfidObject {
+  uid          String     @unique
+  objectTypeId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  objectType   ObjectType @relation(fields: [objectTypeId], references: [id], onDelete: Cascade)
+
+  @@index([objectTypeId])
+  @@map("rfid_objects")
 }
 
 model User {
@@ -28,77 +231,71 @@ model User {
   emailVerified DateTime?
   name          String?
   avatar        String?
-  password      String? // Pour l'authentification par mot de passe
-  isAdmin       Boolean   @default(false) // Accès admin (ex: upload firmware)
+  password      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-
+  isAdmin       Boolean   @default(false)
   accounts      Account[]
-  sessions      Session[]
+  files         File[]
   kidoos        Kidoo[]
+  sessions      Session[]
   tags          Tag[]
-  files File[]
 
   @@map("users")
 }
 
 model Kidoo {
-  id                String     @id @default(uuid())
-  name              String
-  model             KidooModel @default(basic) // Modèle du Kidoo (basic, dream)
-  macAddress        String?  // Adresse MAC WiFi (renvoyée par l'ESP32 lors du setup)
-  bluetoothMacAddress String? // Adresse MAC Bluetooth (pour comparer lors des scans automatiques)
-  deviceId          String   @unique // UUID du device BLE
-  firmwareVersion   String?
-  lastConnected     DateTime?
-  isConnected       Boolean  @default(false)
-  wifiSSID          String?  // Lecture seule, pour affichage uniquement (modification via Bluetooth uniquement)
-  userId            String?
-  isSynced          Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String            @id @default(uuid())
+  name                String
+  model               KidooModel        @default(basic)
+  macAddress          String?
+  deviceId            String            @unique
+  firmwareVersion     String?
+  lastConnected       DateTime?
+  isConnected         Boolean           @default(false)
+  wifiSSID            String?
+  userId              String?
+  isSynced            Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  bluetoothMacAddress String?
+  brightness          Int               @default(100)
+  sleepColorB         Int?
+  sleepColorG         Int?
+  sleepColorR         Int?
+  sleepEffect         Int?
+  sleepTimeout        Int               @default(30000)
+  configBasic         KidooConfigBasic?
+  configDream         KidooConfigDream?
+  user                User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags                Tag[]
 
-  brightness        Int       @default(100) // Luminosité (10-100)
-  sleepTimeout      Int       @default(30000) // Timeout de sommeil en ms (5000-300000)
-  
-  // Configuration du sleep mode (mode veille)
-  sleepColorR       Int?      // Composante rouge de la couleur de veille (0-255, null si non configuré)
-  sleepColorG       Int?      // Composante verte de la couleur de veille (0-255, null si non configuré)
-  sleepColorB       Int?      // Composante bleue de la couleur de veille (0-255, null si non configuré)
-  sleepEffect       Int?      // Effet LED pour le sleep mode (0 = LED_EFFECT_NONE, null si non configuré)
-
-  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tags         Tag[]
-  configBasic  KidooConfigBasic? // Configuration spécifique au modèle Basic (relation 1:1)
-  configDream  KidooConfigDream? // Configuration spécifique au modèle Dream (relation 1:1)
-
-  @@map("kidoos")
   @@index([userId])
   @@index([deviceId])
   @@index([model])
+  @@map("kidoos")
 }
 
 model Tag {
-  id          String   @id @default(uuid()) // Clé primaire générée par Prisma
-  tagId       String?  @unique // UUID généré par l'app et écrit sur le tag NFC (nullable temporairement pour migration)
-  uid         String?  // UID du tag NFC (lecture seule, identifiant matériel du tag physique) - null jusqu'à la lecture du tag
-  name        String?  // Nom optionnel pour le tag
-  type        TagType? // Type du tag (enum: MUSIC, STORY, SOUND)
-  kidooId     String
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  kidoo       Kidoo    @relation(fields: [kidooId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(uuid())
+  uid             String?
+  name            String?
+  kidooId         String
+  userId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tagId           String?  @unique
+  type            TagType?
   multimediaFiles File[]
+  kidoo           Kidoo    @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("tags")
   @@index([kidooId])
   @@index([userId])
   @@index([uid])
   @@index([tagId])
   @@index([type])
+  @@map("tags")
 }
 
 model Account {
@@ -107,15 +304,14 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -140,19 +336,17 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-// Firmware par modèle Kidoo (Basic, Dream, etc.)
-// partCount > 1 : firmware en parts (firmware/{model}/{version}/part0.bin, part1.bin, ...)
 model Firmware {
   id        String     @id @default(uuid())
-  model     KidooModel // Modèle cible (basic, dream)
-  version   String   // Version (ex: 1.0.0)
-  url       String   // URL publique du binaire (R2/S3) ou première part
-  path      String   // Chemin dans le bucket (part0 ou fichier unique)
-  fileName  String   // Nom du fichier (part0.bin ou firmware.bin)
-  fileSize  Int      // Taille totale en octets
-  partCount Int      @default(1) // Nombre de parts (1 = fichier unique)
-  changelog String?  // Changelog en Markdown
-  createdAt DateTime @default(now())
+  model     KidooModel
+  version   String
+  url       String
+  path      String
+  fileName  String
+  fileSize  Int
+  createdAt DateTime   @default(now())
+  changelog String?
+  partCount Int        @default(1)
 
   @@unique([model, version])
   @@index([model])
@@ -160,131 +354,172 @@ model Firmware {
 }
 
 model File {
-  id          String   @id @default(uuid())
-  tagId       String   // ID du tag associé
-  userId      String   // ID de l'utilisateur qui a uploadé le fichier
-  url         String   // URL publique du fichier (Cloudflare R2)
-  path        String   // Chemin dans le bucket (ex: kidooId/tagId/filename)
-  fileName    String   // Nom du fichier
-  originalName String  // Nom original du fichier uploadé
-  size        Int      // Taille du fichier en octets
-  mimeType    String   // Type MIME du fichier (ex: audio/mpeg)
-  order       Int      @default(0) // Ordre d'affichage dans la liste (pour réorganisation)
-  disabled    Boolean  @default(false) // Indique si le fichier est désactivé (en pause)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  tagId        String
+  userId       String
+  url          String
+  path         String
+  fileName     String
+  originalName String
+  size         Int
+  mimeType     String
+  order        Int      @default(0)
+  disabled     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tag          Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("files")
   @@index([tagId])
   @@index([userId])
   @@index([createdAt])
-  @@index([tagId, order]) // Index composite pour trier par tag et ordre
+  @@index([tagId, order])
+  @@map("files")
 }
 
-// Configuration spécifique au modèle Basic
-// Note: Les configurations WiFi ne sont PAS stockées ici (restent sur le device, modifiables uniquement via Bluetooth)
-// Note: sleepTransitionMs est géré nativement par l'ESP32, pas stocké en base
-// Note: Les configurations LED (couleur et effet) ne sont PAS stockées ici (envoyées uniquement via Bluetooth en temps réel)
 model KidooConfigBasic {
-  id                String    @id @default(uuid())
-  kidooId           String    @unique // Relation 1:1 avec Kidoo
+  id                 String    @id @default(uuid())
+  kidooId            String    @unique
+  storageTotalBytes  BigInt?
+  storageFreeBytes   BigInt?
+  storageUsedBytes   BigInt?
+  storageFreePercent Int?
+  storageUsedPercent Int?
+  storageLastUpdated DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  kidoo              Kidoo     @relation(fields: [kidooId], references: [id], onDelete: Cascade)
 
-  // Données de stockage (dernières valeurs reçues de l'ESP32)
-  storageTotalBytes BigInt?   // Espace total en bytes (null si non disponible)
-  storageFreeBytes  BigInt?   // Espace libre en bytes (null si non disponible)
-  storageUsedBytes  BigInt?   // Espace utilisé en bytes (null si non disponible)
-  storageFreePercent Int?     // Pourcentage d'espace libre (0-100, null si non disponible)
-  storageUsedPercent Int?     // Pourcentage d'espace utilisé (0-100, null si non disponible)
-  storageLastUpdated DateTime? // Date de dernière mise à jour des données de stockage
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  kidoo             Kidoo     @relation(fields: [kidooId], references: [id], onDelete: Cascade)
-
+  @@index([kidooId])
   @@map("kidoo_config_basic")
-  @@index([kidooId])
 }
 
-// Configuration spécifique au modèle Dream
-// Note: Les configurations WiFi ne sont PAS stockées ici (restent sur le device, modifiables uniquement via Bluetooth)
 model KidooConfigDream {
-  id                String    @id @default(uuid())
-  kidooId           String    @unique // Relation 1:1 avec Kidoo
+  id               String                            @id @default(uuid())
+  kidooId          String                            @unique
+  colorR           Int?
+  colorG           Int?
+  colorB           Int?
+  brightness       Int?
+  allNight         Boolean                           @default(false)
+  effect           String?
+  wakeupColorR     Int?
+  wakeupColorG     Int?
+  wakeupColorB     Int?
+  wakeupBrightness Int?
+  createdAt        DateTime                          @default(now())
+  updatedAt        DateTime                          @updatedAt
+  kidoo            Kidoo                             @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+  bedtimeSchedules KidooConfigDreamBedtimeSchedule[]
+  wakeupSchedules  KidooConfigDreamWakeupSchedule[]
 
-  // Configuration du rituel de sommeil (bedtime)
-  // Couleur RGB (0-255)
-  colorR            Int?      // Composante rouge de la couleur de coucher (0-255, null si non configuré)
-  colorG            Int?      // Composante verte de la couleur de coucher (0-255, null si non configuré)
-  colorB            Int?      // Composante bleue de la couleur de coucher (0-255, null si non configuré)
-  
-  // Luminosité
-  brightness        Int?      // Luminosité des LEDs pour le coucher (0-255, null si non configuré)
-  
-  // Mode d'allumage
-  allNight          Boolean   @default(false) // Si true, la veilleuse reste allumée toute la nuit, sinon elle s'éteint après une durée définie
-
-  // Effet LED pour le coucher (null = couleur fixe, sinon nom de l'effet)
-  effect            String?   // Effet LED: "none" (couleur fixe), "pulse", "rainbow-soft", "breathe", "nightlight", etc.
-
-  // Configuration du réveil (wake-up)
-  // Couleur RGB pour le réveil (0-255)
-  wakeupColorR      Int?      // Composante rouge de la couleur de réveil (0-255, null si non configuré)
-  wakeupColorG      Int?      // Composante verte de la couleur de réveil (0-255, null si non configuré)
-  wakeupColorB      Int?      // Composante bleue de la couleur de réveil (0-255, null si non configuré)
-  
-  // Luminosité pour le réveil
-  wakeupBrightness  Int?      // Luminosité des LEDs pour le réveil (0-255, null si non configuré)
-  
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  kidoo             Kidoo     @relation(fields: [kidooId], references: [id], onDelete: Cascade)
-  bedtimeSchedules  KidooConfigDreamBedtimeSchedule[]
-  wakeupSchedules   KidooConfigDreamWakeupSchedule[]
-
-  @@map("kidoo_config_dream")
   @@index([kidooId])
+  @@map("kidoo_config_dream")
 }
 
-// Horaires de coucher par jour de la semaine pour le modèle Dream
 model KidooConfigDreamBedtimeSchedule {
-  id                  String    @id @default(uuid())
-  kidooConfigDreamId  String    // Relation N:1 avec KidooConfigDream
-  
-  weekday             String    // Jour de la semaine: monday, tuesday, wednesday, thursday, friday, saturday, sunday
-  hour                Int       // Heure de coucher (0-23)
-  minute              Int       // Minute de coucher (0-59)
-  activated           Boolean   @default(false) // Si true, le jour est activé pour l'heure de coucher
-  
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  kidooConfigDream    KidooConfigDream @relation(fields: [kidooConfigDreamId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(uuid())
+  kidooConfigDreamId String
+  weekday            String
+  hour               Int
+  minute             Int
+  activated          Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  kidooConfigDream   KidooConfigDream @relation(fields: [kidooConfigDreamId], references: [id], onDelete: Cascade)
 
   @@unique([kidooConfigDreamId, weekday])
   @@index([kidooConfigDreamId])
   @@map("kidoo_config_dream_bedtime_schedule")
 }
 
-// Horaires de réveil par jour de la semaine pour le modèle Dream
 model KidooConfigDreamWakeupSchedule {
-  id                  String    @id @default(uuid())
-  kidooConfigDreamId  String    // Relation N:1 avec KidooConfigDream
-  
-  weekday             String    // Jour de la semaine: monday, tuesday, wednesday, thursday, friday, saturday, sunday
-  hour                Int       // Heure de réveil (0-23)
-  minute              Int       // Minute de réveil (0-59)
-  activated           Boolean   @default(false) // Si true, le jour est activé pour l'heure de réveil
-  
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  kidooConfigDream    KidooConfigDream @relation(fields: [kidooConfigDreamId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(uuid())
+  kidooConfigDreamId String
+  weekday            String
+  hour               Int
+  minute             Int
+  activated          Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  kidooConfigDream   KidooConfigDream @relation(fields: [kidooConfigDreamId], references: [id], onDelete: Cascade)
 
   @@unique([kidooConfigDreamId, weekday])
   @@index([kidooConfigDreamId])
   @@map("kidoo_config_dream_wakeup_schedule")
+}
+
+enum TagType {
+  MUSIC
+  STORY
+  SOUND
+}
+
+enum CharacterSex {
+  FEMALE
+  MALE
+}
+
+enum CharacterPersonality {
+  TIMID
+  GRUMPY
+  FUNNY
+  ALWAYS_HUNGRY
+  BASIC
+}
+
+enum EventType {
+  RFID
+  TEMP
+  IMU
+  TOUCH
+  POWER
+  SYSTEM
+}
+
+enum EventKey {
+  TAG_PRESENT
+  TAG_ABSENT
+  TEMP_READING
+  TEMP_HOT
+  TEMP_COLD
+  IMU_SHAKE
+  IMU_TILT
+  TOUCH_TAP
+  TOUCH_LONG
+  CHARGING_STARTED
+  CHARGING_STOPPED
+  SLEEP_ENTER
+  SLEEP_EXIT
+  CUSTOM
+}
+
+enum ClipStatus {
+  DRAFT
+  GENERATING
+  READY
+  FAILED
+  DISABLED
+}
+
+enum FaceRegionKey {
+  LEFT_EYE
+  RIGHT_EYE
+  MOUTH
+}
+
+enum CornerStyle {
+  ROUNDED
+  SQUARE
+}
+
+enum EmotionDeviceMode {
+  NORMAL
+  CHARGING
+  SLEEP
+}
+
+enum KidooModel {
+  basic
+  dream
 }

@@ -176,7 +176,7 @@ export const PATCH = withAuth(async (
           params.effect = effect;
         }
 
-        await sendCommand(kidoo.macAddress, 'sleep-mode-config', params);
+        await sendCommand(kidoo.macAddress, 'sleep-mode-config', { params });
         console.log('[SLEEP-MODE] Commande envoyée via PubNub:', JSON.stringify({ action: 'sleep-mode-config', ...params }, null, 2));
       } catch (pubnubError) {
         console.error('[SLEEP-MODE] Erreur lors de l\'envoi de la commande PubNub:', pubnubError);
