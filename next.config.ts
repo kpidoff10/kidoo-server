@@ -22,6 +22,9 @@ const sharedResolveDir = sharedDir;
 const nextConfig: NextConfig = {
   /* config options here */
 
+  // Éviter toute redirection trailing slash (cause fréquente de 308 sur /api)
+  trailingSlash: false,
+
   // Next.js 16 utilise Turbopack par défaut ; config vide pour éviter l’erreur
   // si on a une config webpack (ex. résolution kidoo-shared). Pour forcer webpack : npm run dev -- --webpack
   // Contournement EPERM Windows : limiter le tracing au projet (évite scandir WinSAT) - prisma/prisma#27555

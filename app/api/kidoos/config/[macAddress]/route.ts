@@ -75,7 +75,7 @@ export async function GET(
       });
     }
 
-    // Construire la réponse avec les configurations bedtime et wakeup
+    // Construire la réponse avec les configurations bedtime, wakeup et nighttimeAlert
     const response: {
       bedtime?: {
         weekdaySchedule?: Record<string, { hour: number; minute: number; activated: boolean }>;
@@ -92,6 +92,7 @@ export async function GET(
         colorB: number;
         brightness: number;
       };
+      nighttimeAlertEnabled?: boolean;
     } = {};
 
     // Configuration Bedtime
@@ -156,6 +157,8 @@ export async function GET(
         colorB: 100,
         brightness: 50,
       };
+
+      response.nighttimeAlertEnabled = false;
     }
 
     return createSuccessResponse(response);
