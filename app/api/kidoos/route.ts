@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { createKidooInputSchema } from '@/shared';
+import { createKidooInputSchema, type CreateKidooInput } from '@/shared';
 import type { KidooModel } from '@kidoo/shared/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
@@ -69,7 +69,8 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
       });
     }
 
-    const { name, model, deviceId, macAddress, bluetoothMacAddress, firmwareVersion, brightness, sleepTimeout } = validationResult.data;
+    const data = validationResult.data as CreateKidooInput & { publicKey?: string };
+    const { name, model, deviceId, macAddress, bluetoothMacAddress, firmwareVersion, brightness, sleepTimeout, publicKey } = data;
 
     // Vérifier si un kidoo avec ce deviceId existe déjà
     const existingKidoo = await prisma.kidoo.findUnique({
@@ -103,6 +104,7 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
         firmwareVersion: firmwareVersion || null,
         brightness: brightness !== undefined ? brightness : undefined, // Brightness en pourcentage (0-100)
         sleepTimeout: sleepTimeout !== undefined ? sleepTimeout : undefined, // Sleep timeout en millisecondes
+        publicKey: publicKey || null, // Clé publique Ed25519 pour authentification device
         userId,
         isConnected: false,
         isSynced: true, // Marqué comme synchronisé avec le serveur

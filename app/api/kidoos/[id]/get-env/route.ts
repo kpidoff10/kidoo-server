@@ -13,7 +13,7 @@ import { requireAuth } from '@/lib/auth-helpers';
 import { KidooCommandAction } from '@kidoo/shared';
 import { sendCommand, isPubNubConfigured, waitForMessage, getLatestEnvFromHistory } from '@/lib/pubnub';
 
-const RESPONSE_TIMEOUT_MS = 5000;
+const RESPONSE_TIMEOUT_MS = 8000;
 
 export async function GET(
   request: NextRequest,
@@ -86,12 +86,17 @@ export async function GET(
     }
 
 
-    const response = await waitForMessage(kidoo.macAddress, 'env', {
+    let response = await waitForMessage(kidoo.macAddress, 'env', {
       timeoutMs: RESPONSE_TIMEOUT_MS,
-      pollIntervalMs: 500,
+      pollIntervalMs: 300,
       kidooId: id,
       action: KidooCommandAction.GetEnv,
     });
+
+    // Fallback : le message a pu arriver pendant le timeout, vérifier l'historique une dernière fois
+    if (!response) {
+      response = (await getLatestEnvFromHistory(kidoo.macAddress)) as Record<string, unknown> | null;
+    }
 
     if (response && typeof response.available === 'boolean') {
       const rawPressure = response.pressurePa != null ? Number(response.pressurePa) : null;

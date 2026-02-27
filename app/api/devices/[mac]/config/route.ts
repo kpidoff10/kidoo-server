@@ -1,51 +1,34 @@
 /**
- * Route API publique pour que l'ESP32 récupère sa configuration via son adresse MAC
- * GET /api/kidoos/config/[macAddress] - Récupère les configurations bedtime et wakeup
- * 
- * Cette route est publique (sans authentification) car l'ESP32 n'a pas de token JWT.
- * L'adresse MAC sert d'identifiant unique pour retrouver le Kidoo.
+ * GET /api/devices/[mac]/config
+ * Route pour que l'ESP32 récupère sa configuration via son adresse MAC.
+ * Récupère les configurations bedtime et wakeup.
+ *
+ * Protégé par signature Ed25519 si le Kidoo a une publicKey.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
+import { withDeviceAuth } from '@/lib/withDeviceAuth';
 
-/**
- * Normalise une adresse MAC pour la recherche
- * Enlève les séparateurs (: - .) et met en majuscules
- */
 function normalizeMacAddress(mac: string): string {
   return mac.replace(/[:.\-]/g, '').toUpperCase();
 }
 
-/**
- * GET /api/kidoos/config/[macAddress]
- * Récupère les configurations bedtime et wakeup pour l'ESP32
- */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ macAddress: string }> }
-) {
+export const GET = withDeviceAuth(async (request, { params }) => {
   try {
-    const { macAddress } = await params;
+    const { mac } = await params;
 
-    if (!macAddress) {
+    if (!mac) {
       return createErrorResponse('BAD_REQUEST', 400, {
         message: 'Adresse MAC manquante',
       });
     }
 
-    // Normaliser l'adresse MAC pour la recherche
-    const normalizedMac = normalizeMacAddress(macAddress);
+    const normalizedMac = normalizeMacAddress(mac);
 
-    // Trouver le Kidoo par son adresse MAC
-    // On récupère tous les Kidoos et on filtre côté code pour gérer les différents formats
     const allKidoos = await prisma.kidoo.findMany({
-      where: {
-        macAddress: {
-          not: null,
-        },
-      },
+      where: { macAddress: { not: null } },
       include: {
         configDream: {
           include: {
@@ -56,7 +39,6 @@ export async function GET(
       },
     });
 
-    // Trouver le Kidoo dont l'adresse MAC normalisée correspond
     const kidoo = allKidoos.find((k) => {
       if (!k.macAddress) return false;
       return normalizeMacAddress(k.macAddress) === normalizedMac;
@@ -68,14 +50,12 @@ export async function GET(
       });
     }
 
-    // Vérifier que c'est un modèle Dream (Prisma enum = lowercase 'dream')
     if (kidoo.model !== 'dream') {
       return createErrorResponse('BAD_REQUEST', 400, {
         message: 'Cette configuration est uniquement disponible pour le modèle Dream',
       });
     }
 
-    // Construire la réponse avec les configurations bedtime et wakeup
     const response: {
       bedtime?: {
         weekdaySchedule?: Record<string, { hour: number; minute: number; activated: boolean }>;
@@ -92,11 +72,10 @@ export async function GET(
         colorB: number;
         brightness: number;
       };
+      nighttimeAlertEnabled?: boolean;
     } = {};
 
-    // Configuration Bedtime
     if (kidoo.configDream) {
-      // Bedtime schedule (clés en minuscules pour l'ESP: monday, tuesday, ...)
       let bedtimeWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
       if (kidoo.configDream.bedtimeSchedules && kidoo.configDream.bedtimeSchedules.length > 0) {
         bedtimeWeekdaySchedule = {};
@@ -118,7 +97,6 @@ export async function GET(
         nightlightAllNight: kidoo.configDream.allNight ?? false,
       };
 
-      // Wakeup schedule (clés en minuscules pour l'ESP: monday, tuesday, ...)
       let wakeupWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
       if (kidoo.configDream.wakeupSchedules && kidoo.configDream.wakeupSchedules.length > 0) {
         wakeupWeekdaySchedule = {};
@@ -139,7 +117,6 @@ export async function GET(
         brightness: kidoo.configDream.wakeupBrightness ?? 50,
       };
     } else {
-      // Valeurs par défaut si pas de configuration
       response.bedtime = {
         weekdaySchedule: undefined,
         colorR: 255,
@@ -156,6 +133,8 @@ export async function GET(
         colorB: 100,
         brightness: 50,
       };
+
+      response.nighttimeAlertEnabled = false;
     }
 
     return createSuccessResponse(response);
@@ -165,4 +144,4 @@ export async function GET(
       details: error instanceof Error ? error.message : undefined,
     });
   }
-}
+});
