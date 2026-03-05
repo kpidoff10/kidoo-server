@@ -13,6 +13,10 @@ const SIGNATURE_HEADER = 'x-kidoo-signature';
 const TIMESTAMP_HEADER = 'x-kidoo-timestamp';
 const TIMESTAMP_TOLERANCE_SEC = 900; // 15 minutes (drift RTC/ESP32 interne)
 
+function isDevelopmentEnv(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
+
 function normalizeMacAddress(mac: string): string {
   return mac.replace(/[:.\-]/g, '').toUpperCase();
 }
@@ -62,7 +66,13 @@ async function verifyDeviceSignature(
     return { success: true, kidooId: kidoo.id };
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  // En développement: bypass de la vérification de signature pour faciliter le debug
+  if (isDevelopmentEnv()) {
+    console.log('[withDeviceAuth] 🔓 MODE DEV: Bypass de la vérification de signature');
+    return { success: true, kidooId: kidoo.id };
+  }
+
+  if (isDevelopmentEnv()) {
     console.log('[withDeviceAuth] publicKey:', kidoo.publicKey);
   }
 
@@ -104,7 +114,7 @@ async function verifyDeviceSignature(
   const now = Math.floor(Date.now() / 1000);
   const diff = Math.abs(now - timestamp);
   if (diff > TIMESTAMP_TOLERANCE_SEC) {
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevelopmentEnv()) {
       console.log('[withDeviceAuth] Timestamp expiré | now=', now, 'ts=', timestamp, 'diff=', diff, 's');
     }
     return {
@@ -133,7 +143,7 @@ async function verifyDeviceSignature(
       ? `${method}\n${path}\n${tsForMessage}\n${body}`
       : `${method}\n${path}\n${tsForMessage}`;
 
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevelopmentEnv()) {
     console.log('[withDeviceAuth] Message:', JSON.stringify(message), '| path=', path, '| url.pathname=', request.nextUrl.pathname);
   }
 
@@ -152,7 +162,7 @@ async function verifyDeviceSignature(
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevelopmentEnv()) {
     console.log('[withDeviceAuth] signature.length:', signature.length, '(attendu: 64)');
     console.log('[withDeviceAuth] publicKey.length:', publicKey.length, '(attendu: 32)');
     if (signature.length === 32) {
@@ -165,13 +175,13 @@ async function verifyDeviceSignature(
   try {
     verified = nacl.sign.detached.verify(messageBuffer, signature, publicKey);
   } catch (e) {
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevelopmentEnv()) {
       console.log('[withDeviceAuth] Erreur nacl.sign.detached.verify:', e);
     }
   }
 
   if (!verified) {
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevelopmentEnv()) {
       console.log('[withDeviceAuth] ÉCHEC vérification | sig.len=', signature.length, '| msg.len=', messageBuffer.length);
     }
     return {

@@ -40,6 +40,19 @@ export async function processNighttimeAlert(mac: string): Promise<{
     return { ok: false, pushed: 0, reason: 'kidoo_not_found_or_disabled', status: 200 };
   }
 
+  // Créer une notification en DB
+  // Titre et message seront gérés par l'app via useTranslation()
+  // Kidoo name est accessible via la FK kidooId → Kidoo.name
+  await prisma.notification.create({
+    data: {
+      userId: kidoo.userId,
+      kidooId: kidoo.id,
+      type: 'nighttime-alert',
+    },
+  });
+
+  // Envoyer la notification push
+  // Le titre et message sont ici pour le push, mais stockés en DB via le type
   const sent = await sendPushToUser(
     kidoo.userId,
     'Alerte veilleuse',

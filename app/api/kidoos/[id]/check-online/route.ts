@@ -118,10 +118,10 @@ export const GET = withAuth(async (
         data: updateData,
       });
 
-      // Retourner deviceState si présent (Dream: idle, bedtime, wakeup)
+      // Retourner deviceState si présent (Dream: idle, bedtime, wakeup, manual)
       const deviceState =
         typeof response.deviceState === 'string' &&
-        ['idle', 'bedtime', 'wakeup'].includes(response.deviceState)
+        ['idle', 'bedtime', 'wakeup', 'manual'].includes(response.deviceState)
           ? response.deviceState
           : undefined;
 

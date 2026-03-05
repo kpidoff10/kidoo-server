@@ -72,6 +72,13 @@ export const GET = withDeviceAuth(async (request, { params }) => {
         colorB: number;
         brightness: number;
       };
+      defaultColor?: {
+        colorR: number;
+        colorG: number;
+        colorB: number;
+        brightness: number;
+        effect: string;
+      } | null;
       nighttimeAlertEnabled?: boolean;
     } = {};
 
@@ -116,6 +123,14 @@ export const GET = withDeviceAuth(async (request, { params }) => {
         colorB: kidoo.configDream.wakeupColorB ?? 100,
         brightness: kidoo.configDream.wakeupBrightness ?? 50,
       };
+
+      response.defaultColor = kidoo.configDream.defaultColorR != null ? {
+        colorR: kidoo.configDream.defaultColorR,
+        colorG: kidoo.configDream.defaultColorG ?? 255,
+        colorB: kidoo.configDream.defaultColorB ?? 255,
+        brightness: kidoo.configDream.defaultBrightness ?? 50,
+        effect: kidoo.configDream.defaultEffect ?? 'static',
+      } : null;
     } else {
       response.bedtime = {
         weekdaySchedule: undefined,
@@ -134,6 +149,7 @@ export const GET = withDeviceAuth(async (request, { params }) => {
         brightness: 50,
       };
 
+      response.defaultColor = null;
       response.nighttimeAlertEnabled = false;
     }
 

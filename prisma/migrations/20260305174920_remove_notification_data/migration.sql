@@ -1,0 +1,3 @@
+-- AlterTable
+-- Migration already applied via db push
+-- Dropped column "data" from notifications table

@@ -59,6 +59,29 @@ export const POST = withAuth(async (
       });
     }
 
+    // Marquer la notification comme lue
+    const notification = await prisma.notification.findFirst({
+      where: {
+        userId,
+        kidooId: id,
+        type: 'nighttime-alert',
+        isRead: false,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (notification) {
+      await prisma.notification.update({
+        where: { id: notification.id },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+    }
+
     return createSuccessResponse({ sent: true });
   } catch (error) {
     console.error('[nighttime-alert-ack] Erreur:', error);

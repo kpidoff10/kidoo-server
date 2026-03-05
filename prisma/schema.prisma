@@ -226,21 +226,23 @@ model RfidObject {
 }
 
 model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
+  id           String       @id @default(uuid())
+  email        String       @unique
   emailVerified DateTime?
-  name          String?
-  avatar        String?
-  password      String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  isAdmin       Boolean      @default(false)
-  accounts      Account[]
-  files         File[]
-  kidoos        Kidoo[]
-  sessions      Session[]
-  tags          Tag[]
-  pushTokens    PushToken[]
+  name         String?
+  avatar       String?
+  password     String?
+  timezoneId   String       @default("UTC")  // IANA timezone (ex: "Europe/Paris", "America/New_York")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  isAdmin      Boolean      @default(false)
+  accounts     Account[]
+  files        File[]
+  kidoos       Kidoo[]
+  sessions     Session[]
+  tags         Tag[]
+  pushTokens   PushToken[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -255,6 +257,26 @@ model PushToken {
 
   @@index([userId])
   @@map("push_tokens")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  kidooId   String?  // Dénormalisé pour queries efficaces
+  type      String   // ex: 'nighttime-alert', 'device-offline', etc.
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kidoo     Kidoo?   @relation(fields: [kidooId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([kidooId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
 }
 
 model Kidoo {
@@ -284,6 +306,7 @@ model Kidoo {
   configDream         KidooConfigDream?
   user                User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags                Tag[]
+  notifications       Notification[]
 
   @@index([userId])
   @@index([deviceId])
@@ -418,10 +441,17 @@ model KidooConfigDream {
   brightness           Int?
   allNight             Boolean                           @default(false)
   effect               String?
-  wakeupColorR         Int?
-  wakeupColorG         Int?
-  wakeupColorB         Int?
-  wakeupBrightness     Int?
+  wakeupColorR              Int?
+  wakeupColorG              Int?
+  wakeupColorB              Int?
+  wakeupBrightness          Int?
+  wakeupAutoShutdown        Boolean                           @default(true)
+  wakeupAutoShutdownMinutes Int?                             @default(30)
+  defaultColorR             Int?
+  defaultColorG        Int?
+  defaultColorB        Int?
+  defaultBrightness    Int?
+  defaultEffect        String?
   nighttimeAlertEnabled Boolean                          @default(false)
   createdAt            DateTime                          @default(now())
   updatedAt            DateTime                          @updatedAt

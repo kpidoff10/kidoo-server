@@ -27,7 +27,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password, name } = validationResult.data;
+    const { email, password, name, timezoneId } = validationResult.data as any;
+
+    // Valider la timezone IANA
+    const validTimezones = [
+      'UTC', 'Europe/Paris', 'Europe/London', 'Europe/Berlin', 'Europe/Amsterdam',
+      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+      'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Singapore', 'Asia/Bangkok',
+      'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland',
+      'America/Toronto', 'America/Mexico_City', 'America/Sao_Paulo',
+      'Africa/Cairo', 'Africa/Johannesburg', 'Africa/Lagos',
+      'India/Kolkata', 'Asia/Dubai', 'Asia/Istanbul'
+    ];
+
+    if (!timezoneId || !validTimezones.includes(timezoneId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Timezone invalide',
+          field: 'timezoneId',
+        },
+        { status: 400 }
+      );
+    }
 
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.user.findUnique({
@@ -55,6 +77,7 @@ export async function POST(request: NextRequest) {
         email,
         password: hashedPassword,
         name: name ?? null,
+        timezoneId: timezoneId,  // Stocker la timezone IANA
       },
       select: {
         id: true,

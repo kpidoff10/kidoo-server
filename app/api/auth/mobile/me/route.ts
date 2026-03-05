@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         email: true,
         name: true,
         avatar: true,
+        timezoneId: true,
       },
     });
 
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
       email: user.email,
       name: user.name || '',
       avatar: user.avatar,
+      timezoneId: user.timezoneId,
     });
   } catch (error) {
     console.error('Erreur lors de la récupération du profil:', error);

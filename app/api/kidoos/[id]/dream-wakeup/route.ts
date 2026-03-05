@@ -61,6 +61,8 @@ export const GET = withAuth(async (
         colorG: 200,
         colorB: 100,
         brightness: 50,
+        autoShutdown: true,
+        autoShutdownMinutes: 30,
       });
     }
 
@@ -83,6 +85,8 @@ export const GET = withAuth(async (
       colorG: kidoo.configDream.wakeupColorG ?? 200,
       colorB: kidoo.configDream.wakeupColorB ?? 100,
       brightness: kidoo.configDream.wakeupBrightness ?? 50,
+      autoShutdown: kidoo.configDream.wakeupAutoShutdown ?? true,
+      autoShutdownMinutes: kidoo.configDream.wakeupAutoShutdownMinutes ?? 30,
     });
   } catch (error) {
     console.error('Erreur lors de la récupération de la configuration:', error);
@@ -119,7 +123,7 @@ export const PATCH = withAuth(async (
       });
     }
 
-    const { weekdaySchedule, color: colorHex, brightness } = validation.data;
+    const { weekdaySchedule, color: colorHex, brightness, autoShutdown, autoShutdownMinutes } = validation.data;
     
     // Convertir la couleur hex en RGB et saturer à 100% pour une couleur "profonde"
     const rgb = hexToRgb(colorHex);
@@ -163,6 +167,8 @@ export const PATCH = withAuth(async (
       wakeupColorG: saturatedRgb.g,
       wakeupColorB: saturatedRgb.b,
       wakeupBrightness: brightness,
+      wakeupAutoShutdown: autoShutdown ?? true,
+      wakeupAutoShutdownMinutes: autoShutdownMinutes ?? 30,
     };
 
     // Mettre à jour ou créer la configuration
@@ -244,6 +250,8 @@ export const PATCH = withAuth(async (
           colorG: updatedConfig.wakeupColorG,
           colorB: updatedConfig.wakeupColorB,
           brightness: updatedConfig.wakeupBrightness,
+          autoShutdown: updatedConfig.wakeupAutoShutdown ?? true,
+          autoShutdownMinutes: updatedConfig.wakeupAutoShutdownMinutes ?? 30,
           weekdaySchedule: responseWeekdaySchedule && Object.keys(responseWeekdaySchedule).length > 0
             ? Object.fromEntries(
                 Object.entries(responseWeekdaySchedule).map(([k, v]) => [k.toLowerCase(), v])
@@ -279,6 +287,8 @@ export const PATCH = withAuth(async (
         colorG: updatedConfig.wakeupColorG ?? 200,
         colorB: updatedConfig.wakeupColorB ?? 100,
         brightness: updatedConfig.wakeupBrightness ?? 50,
+        autoShutdown: updatedConfig.wakeupAutoShutdown ?? true,
+        autoShutdownMinutes: updatedConfig.wakeupAutoShutdownMinutes ?? 30,
       },
       { message: 'Configuration de l\'heure de réveil mise à jour' }
     );

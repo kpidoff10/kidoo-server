@@ -1,0 +1,2 @@
+-- Migration already applied via db push
+-- No additional changes needed
