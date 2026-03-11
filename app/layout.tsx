@@ -18,9 +18,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Kidoo - Veilleuse intelligente pour enfants",
   description: "Kidoo est une veilleuse intelligente connectée qui accompagne les enfants au coucher et au réveil avec des routines personnalisables, des effets lumineux apaisants et bien plus encore.",
+  keywords: ["veilleuse", "enfants", "routines", "sommeil", "domotique", "intelligente"],
+  authors: [{ name: "Kidoo Team" }],
+  creator: "Kidoo",
+  openGraph: {
+    title: "Kidoo - Veilleuse intelligente pour enfants",
+    description: "Découvrez Kidoo : la veilleuse intelligente qui simplifie les routines de vos enfants.",
+    type: "website",
+    locale: "fr_FR",
+  },
   icons: {
-    icon: '/icon.png',
-    shortcut: '/favicon.ico',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
     apple: '/icon.png',
   },
 };

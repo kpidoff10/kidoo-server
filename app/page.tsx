@@ -1,22 +1,29 @@
 import Link from "next/link";
+import { ProductCard } from "./components/ProductCard";
+import { products } from "@/lib/products";
 
 export default function Home() {
+  const availableProducts = products.filter((p) => p.status === "available");
+  const comingSoonProducts = products.filter((p) => p.status === "coming-soon");
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-white to-zinc-50 dark:from-zinc-950 dark:via-black dark:to-zinc-950">
       {/* Header */}
-      <header className="border-b border-zinc-200 dark:border-zinc-800">
+      <header className="border-b border-zinc-200 backdrop-blur dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600"></div>
-              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Kidoo</span>
-            </div>
-            <nav className="hidden gap-6 md:flex">
-              <Link href="#features" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
-                Fonctionnalités
+            <Link href="/" className="flex items-center gap-2">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 shadow-lg"></div>
+              <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-2xl font-bold text-transparent">
+                Kidoo
+              </span>
+            </Link>
+            <nav className="hidden gap-8 md:flex">
+              <Link href="#products" className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
+                Produits
               </Link>
-              <Link href="#routines" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
-                Routines
+              <Link href="#features" className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
+                Fonctionnalités
               </Link>
             </nav>
           </div>
@@ -24,198 +31,158 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-32">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-5xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-6xl lg:text-7xl">
-            La veilleuse intelligente
-            <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              qui accompagne vos enfants
+      <section className="relative overflow-hidden px-6 py-20 md:py-32">
+        <div className="mx-auto max-w-4xl text-center">
+          <div className="mb-6 inline-block rounded-full border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-semibold text-purple-700 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+            ✨ Une collection de produits connectés pour les enfants
+          </div>
+          <h1 className="text-6xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-7xl">
+            L&apos;univers Kidoo
+            <span className="block bg-gradient-to-r from-purple-600 via-pink-600 to-red-500 bg-clip-text text-transparent">
+              pour des nuits et des matins apaisants
             </span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Le Kidoo Dream combine technologie et douceur pour créer des routines de coucher et de réveil automatiques. 
-            Programmez des horaires personnalisés pour chaque jour de la semaine avec des effets lumineux apaisants qui s'activent automatiquement.
+          <p className="mx-auto mt-8 max-w-2xl text-lg leading-8 text-zinc-600 dark:text-zinc-400">
+            Découvrez notre collection de veilleuses et lampes intelligentes conçues pour accompagner les enfants dans leurs routines quotidiennes.
+            Technologie et douceur combinées pour le bien-être de toute la famille.
           </p>
-          <div className="mt-10 flex items-center justify-center gap-4">
+          <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              href="#features"
-              className="rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              href="#products"
+              className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:from-purple-700 hover:to-pink-700"
             >
-              Découvrir les fonctionnalités
+              Explorer les produits
             </Link>
             <Link
-              href="#routines"
-              className="rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+              href="#features"
+              className="rounded-xl border border-zinc-300 px-8 py-3 font-semibold text-zinc-900 transition-all hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
             >
-              En savoir plus
+              Voir les fonctionnalités
             </Link>
           </div>
         </div>
+      </section>
+
+      {/* Products Section */}
+      <section id="products" className="mx-auto max-w-7xl px-6 py-20">
+        <div className="mb-16 text-center">
+          <h2 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50">Nos Produits</h2>
+          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+            Chaque produit Kidoo est conçu avec soin pour offrir une expérience unique
+          </p>
+        </div>
+
+        {/* Available Products */}
+        <div className="grid gap-8 lg:grid-cols-1">
+          {availableProducts.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+
+        {/* Coming Soon Products */}
+        {comingSoonProducts.length > 0 && (
+          <div className="mt-20 pt-20">
+            <h3 className="mb-12 text-center text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+              Bientôt disponible 🎉
+            </h3>
+            <div className="grid gap-8 lg:grid-cols-1">
+              {comingSoonProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Features Section */}
       <section id="features" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-            Fonctionnalités principales
+        <div className="mb-16 text-center">
+          <h2 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50">
+            Pourquoi choisir Kidoo ?
           </h2>
-          <p className="mt-4 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Tout ce dont vous avez besoin pour créer des routines apaisantes
+          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+            Des fonctionnalités pensées pour simplifier votre vie
           </p>
         </div>
-        <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 sm:grid-cols-2 lg:max-w-none lg:grid-cols-3">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Routines personnalisables</h3>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Configurez des horaires de coucher et de réveil pour chaque jour de la semaine avec des couleurs et effets personnalisés.
-            </p>
-          </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
-              <svg className="h-6 w-6 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-              </svg>
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            {
+              icon: "🎯",
+              title: "Personnalisable",
+              description:
+                "Adaptez chaque paramètre à vos besoins : horaires, couleurs, luminosité, effets spéciaux.",
+            },
+            {
+              icon: "📱",
+              title: "Contrôle facile",
+              description:
+                "Gérez vos appareils depuis votre smartphone via l'application mobile dédiée.",
+            },
+            {
+              icon: "🔄",
+              title: "Routines automatiques",
+              description:
+                "Les appareils activent automatiquement leurs routines selon les horaires programmés.",
+            },
+            {
+              icon: "🌍",
+              title: "Compatible multiplateforme",
+              description:
+                "Fonctionne sur iOS et Android avec une synchronisation instantanée.",
+            },
+            {
+              icon: "⚡",
+              title: "Efficace énergétiquement",
+              description:
+                "Technologie LED dernière génération consommant très peu d'énergie.",
+            },
+            {
+              icon: "🛡️",
+              title: "Sécurisé",
+              description:
+                "Vos données sont protégées avec les dernières normes de sécurité.",
+            },
+          ].map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-2xl border border-zinc-200 bg-white p-8 transition-all hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              <div className="mb-4 text-4xl">{feature.icon}</div>
+              <h3 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                {feature.title}
+              </h3>
+              <p className="text-zinc-600 dark:text-zinc-400">{feature.description}</p>
             </div>
-            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Effets lumineux</h3>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Choisissez parmi plusieurs effets apaisants : pulse, rainbow-soft, breathe, nightlight ou couleur fixe.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-              <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Contrôle intelligent</h3>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Contrôlez la luminosité, le mode veille et toutes les fonctionnalités depuis votre smartphone via Bluetooth ou WiFi.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-900/30">
-              <svg className="h-6 w-6 text-pink-600 dark:text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Mode veille</h3>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Configurez un délai de mise en veille automatique ou choisissez une couleur/effet spécifique pour le mode veille.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-              <svg className="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Routines automatiques</h3>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Programmez des routines de coucher et de réveil qui s'activent automatiquement selon les horaires que vous définissez.
-            </p>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Routines Section */}
-      <section id="routines" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-            Routines intelligentes
+      {/* CTA Section */}
+      <section className="mx-auto max-w-4xl px-6 py-20 text-center">
+        <div className="rounded-3xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 via-white to-pink-50 p-12 dark:border-purple-800 dark:from-purple-900/20 dark:via-black dark:to-pink-900/20">
+          <h2 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50">
+            Prêt à transformer
+            <span className="block bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              les routines de votre enfant ?
+            </span>
           </h2>
-          <p className="mt-4 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Le Kidoo Dream s'adapte automatiquement à votre rythme de vie
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
+            Rejoignez des milliers de parents qui ont simplifié les couchers et les réveils avec Kidoo.
           </p>
-        </div>
-        <div className="mx-auto mt-16 max-w-4xl">
-          <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-12 shadow-xl dark:border-purple-800 dark:from-purple-900/20 dark:to-pink-900/20">
-            <div className="mb-6 inline-block rounded-lg bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-              Kidoo Dream
-            </div>
-            <h3 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Routines de coucher et de réveil</h3>
-            <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
-              Programmez des horaires différents pour chaque jour de la semaine. Le Kidoo Dream s'active automatiquement 
-              avec la couleur, la luminosité et l'effet que vous avez choisis.
-            </p>
-            
-            <div className="mt-8 grid gap-6 sm:grid-cols-2">
-              <div className="rounded-xl border border-purple-200 bg-white/50 p-6 dark:border-purple-800 dark:bg-zinc-900/50">
-                <div className="mb-3 flex items-center gap-2">
-                  <svg className="h-6 w-6 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                  <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Routine de coucher</h4>
-                </div>
-                <p className="text-zinc-600 dark:text-zinc-400">
-                  Choisissez une couleur apaisante ou un effet lumineux doux pour accompagner votre enfant au coucher. 
-                  La veilleuse peut rester allumée toute la nuit ou s'éteindre automatiquement.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-purple-200 bg-white/50 p-6 dark:border-purple-800 dark:bg-zinc-900/50">
-                <div className="mb-3 flex items-center gap-2">
-                  <svg className="h-6 w-6 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                  <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Routine de réveil</h4>
-                </div>
-                <p className="text-zinc-600 dark:text-zinc-400">
-                  Réveillez-vous en douceur avec une lumière progressive qui simule le lever du soleil. 
-                  Parfait pour commencer la journée du bon pied.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 rounded-xl bg-white/70 p-6 dark:bg-zinc-900/70">
-              <h4 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">Fonctionnalités incluses</h4>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-start gap-3">
-                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-zinc-600 dark:text-zinc-400">Horaires personnalisables par jour</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-zinc-600 dark:text-zinc-400">5 effets lumineux différents</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-zinc-600 dark:text-zinc-400">Couleurs personnalisables</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-zinc-600 dark:text-zinc-400">Veilleuse toute la nuit</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-zinc-600 dark:text-zinc-400">Contrôle depuis smartphone</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-zinc-600 dark:text-zinc-400">Activation automatique</span>
-                </div>
-              </div>
-            </div>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link
+              href="/auth/signup"
+              className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:from-purple-700 hover:to-pink-700"
+            >
+              Commencer maintenant
+            </Link>
+            <Link
+              href="#products"
+              className="rounded-xl border border-zinc-300 px-8 py-3 font-semibold text-zinc-900 transition-all hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            >
+              En savoir plus
+            </Link>
           </div>
         </div>
       </section>
@@ -224,10 +191,10 @@ export default function Home() {
       <footer className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-7xl px-6 py-12">
           <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600"></div>
-              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Kidoo</span>
-            </div>
+            <Link href="/" className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600"></div>
+              <span className="font-bold text-zinc-900 dark:text-zinc-50">Kidoo</span>
+            </Link>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               © {new Date().getFullYear()} Kidoo. Tous droits réservés.
             </p>
