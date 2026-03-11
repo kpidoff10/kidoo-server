@@ -278,7 +278,8 @@ export async function waitForMessage(
   const channel = getKidooChannel(macAddress);
 
   // Délai initial : laisse le temps à l'ESP de traiter et à PubNub d'indexer en History
-  const initialDelayMs = 400;
+  // Augmenté de 400ms à 1000ms pour éviter les race conditions d'indexation
+  const initialDelayMs = 1000;
   await new Promise(resolve => setTimeout(resolve, initialDelayMs));
 
   const initialHistory = await fetchHistory(channel, 1);

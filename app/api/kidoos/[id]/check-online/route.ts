@@ -17,7 +17,22 @@ import { sendCommand, isPubNubConfigured, waitForMessage } from '@/lib/pubnub';
 import { KidooErrors } from '../errors';
 
 // Timeout pour attendre la réponse de l'ESP32 (en ms)
-const RESPONSE_TIMEOUT_MS = 5000;
+// Augmenté à 8s pour laisser du temps à l'ESP et PubNub d'indexer la réponse
+const RESPONSE_TIMEOUT_MS = 8000;
+
+// Type pour le message 'info' retourné par l'ESP32
+interface InfoMessage {
+  mac?: string;
+  deviceState?: string;
+  env?: {
+    available?: boolean;
+    temperatureC?: number | null;
+    humidityPercent?: number | null;
+    pressurePa?: number | null;
+    error?: string;
+  };
+  [key: string]: unknown;
+}
 
 /**
  * GET /api/kidoos/[id]/check-online
@@ -94,39 +109,68 @@ export const GET = withAuth(async (
     // (Cette logique sera améliorée si nécessaire)
 
     if (response) {
-      
+      const msg = response as InfoMessage;
+
       // Mettre à jour l'adresse MAC si elle est différente (corriger les erreurs d'enregistrement)
       const updateData: { isConnected: boolean; lastConnected: Date; macAddress?: string } = {
         isConnected: true,
         lastConnected: new Date(),
       };
-      
-      if (response.mac && typeof response.mac === 'string') {
+
+      if (msg.mac && typeof msg.mac === 'string') {
         // Nettoyer l'adresse MAC (enlever les : et -)
-        const cleanMac = response.mac.replace(/[:-]/g, '').toUpperCase();
+        const cleanMac = msg.mac.replace(/[:-]/g, '').toUpperCase();
         const currentMac = kidoo.macAddress?.replace(/[:-]/g, '').toUpperCase();
-        
+
         if (currentMac !== cleanMac) {
-          console.log(`[CHECK-ONLINE] Mise à jour de l'adresse MAC: ${kidoo.macAddress} -> ${response.mac}`);
-          updateData.macAddress = response.mac;
+          console.log(`[CHECK-ONLINE] Mise à jour de l'adresse MAC: ${kidoo.macAddress} -> ${msg.mac}`);
+          updateData.macAddress = msg.mac;
         }
       }
-      
+
       // Mettre à jour la base de données
       await prisma.kidoo.update({
         where: { id },
         data: updateData,
       });
 
-      // Retourner deviceState si présent (Dream: idle, bedtime, wakeup, manual)
+      // Extraire deviceState si présent (Dream: idle, bedtime, wakeup, manual)
       const deviceState =
-        typeof response.deviceState === 'string' &&
-        ['idle', 'bedtime', 'wakeup', 'manual'].includes(response.deviceState)
-          ? response.deviceState
+        typeof msg.deviceState === 'string' &&
+        ['idle', 'bedtime', 'wakeup', 'manual'].includes(msg.deviceState)
+          ? msg.deviceState
           : undefined;
 
+      // Extraire données env (temperature, humidity, pressure)
+      const envObj = msg.env as NonNullable<InfoMessage['env']> | undefined;
+      const env = envObj
+        ? {
+            available: envObj.available === true,
+            temperatureC:
+              envObj.temperatureC != null
+                ? Number(envObj.temperatureC)
+                : null,
+            humidityPercent:
+              envObj.humidityPercent != null
+                ? Number(envObj.humidityPercent)
+                : null,
+            pressurePa:
+              envObj.pressurePa != null
+                ? Number(envObj.pressurePa)
+                : null,
+            error:
+              typeof envObj.error === 'string'
+                ? envObj.error
+                : undefined,
+          }
+        : undefined;
+
       return createSuccessResponse(
-        { isOnline: true, ...(deviceState && { deviceState }) },
+        {
+          isOnline: true,
+          ...(deviceState && { deviceState }),
+          ...(env && { env }),
+        },
         { message: 'Kidoo en ligne' }
       );
     }
