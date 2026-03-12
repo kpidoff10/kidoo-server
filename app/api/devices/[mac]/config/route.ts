@@ -30,6 +30,9 @@ export const GET = withDeviceAuth(async (request, { params }) => {
     const allKidoos = await prisma.kidoo.findMany({
       where: { macAddress: { not: null } },
       include: {
+        user: {
+          select: { timezoneId: true },
+        },
         configDream: {
           include: {
             bedtimeSchedules: true,
@@ -80,6 +83,7 @@ export const GET = withDeviceAuth(async (request, { params }) => {
         effect: string;
       } | null;
       nighttimeAlertEnabled?: boolean;
+      timezoneId?: string;
     } = {};
 
     if (kidoo.configDream) {
@@ -151,6 +155,11 @@ export const GET = withDeviceAuth(async (request, { params }) => {
 
       response.defaultColor = null;
       response.nighttimeAlertEnabled = false;
+    }
+
+    // Ajouter le timezone du profil utilisateur
+    if (kidoo.user?.timezoneId) {
+      response.timezoneId = kidoo.user.timezoneId;
     }
 
     return createSuccessResponse(response);
