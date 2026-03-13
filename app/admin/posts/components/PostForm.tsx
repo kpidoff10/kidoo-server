@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { postFormSchema, PostFormData } from './postFormSchema';
 import { Post } from '@/app/admin/lib/postsApi';
+import { RichTextEditor } from './RichTextEditor';
+import { ImageUpload } from './ImageUpload';
 
 interface PostFormProps {
   initialData?: Post;
@@ -18,6 +20,7 @@ export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
     handleSubmit,
     formState: { errors },
     watch,
+    control,
   } = useForm<PostFormData>({
     resolver: zodResolver(postFormSchema),
     defaultValues: initialData
@@ -36,6 +39,7 @@ export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
   });
 
   const published = watch('published');
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -78,28 +82,39 @@ export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
         {errors.excerpt && <p className="mt-1 text-sm text-red-600">{errors.excerpt.message}</p>}
       </div>
 
-      {/* Image URL */}
+      {/* Image Upload */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">Image (optionnel)</label>
-        <input
-          type="url"
-          {...register('imageUrl')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          placeholder="https://..."
+        <label className="block text-sm font-medium text-gray-700 mb-2">Image (optionnel)</label>
+        <Controller
+          name="imageUrl"
+          control={control}
+          render={({ field }) => (
+            <ImageUpload
+              value={field.value || null}
+              onChange={field.onChange}
+              onError={setUploadError}
+            />
+          )}
         />
+        {uploadError && <p className="mt-2 text-sm text-red-600">{uploadError}</p>}
         {errors.imageUrl && <p className="mt-1 text-sm text-red-600">{errors.imageUrl.message}</p>}
       </div>
 
       {/* Content */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">Contenu (Markdown)</label>
-        <textarea
-          {...register('content')}
-          rows={6}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono text-sm"
-          placeholder="Contenu markdown..."
+        <label className="block text-sm font-medium text-gray-700 mb-2">Contenu</label>
+        <Controller
+          name="content"
+          control={control}
+          render={({ field }) => (
+            <RichTextEditor
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Écrivez votre contenu ici..."
+            />
+          )}
         />
-        {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>}
+        {errors.content && <p className="mt-2 text-sm text-red-600">{errors.content.message}</p>}
       </div>
 
       {/* Published */}

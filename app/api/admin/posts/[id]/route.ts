@@ -8,10 +8,11 @@ import { PostErrors } from '../errors';
  * GET /api/admin/posts/[id]
  * Récupère un post spécifique
  */
-export const GET = withAdminAuth(async (request: AdminAuthenticatedRequest, { params }: { params: { id: string } }) => {
+export const GET = withAdminAuth(async (request: AdminAuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
+    const { id } = await params;
     const post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!post) {
@@ -29,10 +30,11 @@ export const GET = withAdminAuth(async (request: AdminAuthenticatedRequest, { pa
  * PATCH /api/admin/posts/[id]
  * Met à jour un post
  */
-export const PATCH = withAdminAuth(async (request: AdminAuthenticatedRequest, { params }: { params: { id: string } }) => {
+export const PATCH = withAdminAuth(async (request: AdminAuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
+    const { id } = await params;
     const post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!post) {
@@ -43,7 +45,7 @@ export const PATCH = withAdminAuth(async (request: AdminAuthenticatedRequest, { 
     const { title, excerpt, content, imageUrl, type, published } = body;
 
     const updated = await prisma.post.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(title !== undefined && { title }),
         ...(excerpt !== undefined && { excerpt }),
@@ -68,10 +70,11 @@ export const PATCH = withAdminAuth(async (request: AdminAuthenticatedRequest, { 
  * DELETE /api/admin/posts/[id]
  * Supprime un post
  */
-export const DELETE = withAdminAuth(async (request: AdminAuthenticatedRequest, { params }: { params: { id: string } }) => {
+export const DELETE = withAdminAuth(async (request: AdminAuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
+    const { id } = await params;
     const post = await prisma.post.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!post) {
@@ -79,10 +82,10 @@ export const DELETE = withAdminAuth(async (request: AdminAuthenticatedRequest, {
     }
 
     await prisma.post.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
-    return createSuccessResponse({ id: params.id });
+    return createSuccessResponse({ id });
   } catch (error) {
     console.error('Erreur lors de la suppression du post:', error);
     return createErrorResponse(PostErrors.INTERNAL_ERROR);

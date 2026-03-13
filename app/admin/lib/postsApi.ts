@@ -1,5 +1,3 @@
-import { api } from './api';
-
 export interface Post {
   id: string;
   title: string;
@@ -13,38 +11,47 @@ export interface Post {
   updatedAt: string;
 }
 
+async function api<T>(
+  method: string,
+  url: string,
+  body?: any
+): Promise<{ success: true; data: T } | { success: false; error: string }> {
+  const res = await fetch(url, {
+    method,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    return {
+      success: false,
+      error: json.error ?? 'Erreur inconnue',
+    };
+  }
+
+  return { success: true, data: json.data };
+}
+
 export const postsApi = {
-  async getAll(filters?: { type?: string; published?: boolean }) {
+  getAll: (filters?: { type?: string; published?: boolean }) => {
     const params = new URLSearchParams();
     if (filters?.type) params.append('type', filters.type);
     if (filters?.published !== undefined) params.append('published', String(filters.published));
-
-    const result = await api<Post[]>('GET', `/admin/posts?${params.toString()}`);
-    if (!result.success) throw new Error(result.error);
-    return result.data;
+    return api<Post[]>('GET', `/api/admin/posts?${params.toString()}`);
   },
 
-  async getById(id: string) {
-    const result = await api<Post>('GET', `/admin/posts/${id}`);
-    if (!result.success) throw new Error(result.error);
-    return result.data;
-  },
+  getById: (id: string) => api<Post>('GET', `/api/admin/posts/${id}`),
 
-  async create(data: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) {
-    const result = await api<Post>('POST', '/admin/posts', data);
-    if (!result.success) throw new Error(result.error);
-    return result.data;
-  },
+  create: (data: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) =>
+    api<Post>('POST', '/api/admin/posts', data),
 
-  async update(id: string, data: Partial<Omit<Post, 'id' | 'createdAt' | 'updatedAt'>>) {
-    const result = await api<Post>('PATCH', `/admin/posts/${id}`, data);
-    if (!result.success) throw new Error(result.error);
-    return result.data;
-  },
+  update: (id: string, data: Partial<Omit<Post, 'id' | 'createdAt' | 'updatedAt'>>) =>
+    api<Post>('PATCH', `/api/admin/posts/${id}`, data),
 
-  async delete(id: string) {
-    const result = await api<{ id: string }>('DELETE', `/admin/posts/${id}`);
-    if (!result.success) throw new Error(result.error);
-    return result.data;
-  },
+  delete: (id: string) => api<{ id: string }>('DELETE', `/api/admin/posts/${id}`),
 };
