@@ -19,9 +19,9 @@
       }
     ],
     "paths": {
+      "@/*": ["./*"],
       "@/shared": ["../kidoo-shared"],
-      "@/shared/*": ["../kidoo-shared/*"],
-      "@/*": ["./*"]
+      "@/shared/*": ["../kidoo-shared/*"]
     }
   },
   "include": [

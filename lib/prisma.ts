@@ -1,4 +1,4 @@
-import { PrismaClient } from '@kidoo/shared/prisma';
+import { PrismaClient } from '@/shared/prisma';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
