@@ -163,6 +163,7 @@ export async function PUT(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Mettre à jour le mot de passe et nettoyer le code
+    console.log("Updating password for user:", user.id);
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -171,15 +172,16 @@ export async function PUT(request: NextRequest) {
         resetCodeExpiresAt: null,
       },
     });
+    console.log("Password updated successfully");
 
-    return NextResponse.json(
-      {
-        success: true,
-        message:
-          "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
-      },
-      { status: 200 }
-    );
+    const response = {
+      success: true,
+      message:
+        "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
+    };
+
+    console.log("Sending response:", response);
+    return NextResponse.json(response, { status: 200 });
   } catch (error) {
     console.error("Erreur lors de la réinitialisation du mot de passe:", error);
 

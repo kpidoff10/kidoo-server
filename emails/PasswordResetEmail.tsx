@@ -63,7 +63,7 @@ export const PasswordResetEmail = ({
 
             {/* Security note */}
             <Text style={securityText}>
-              <strong>Conseil de sécurité:</strong> Ne partagez jamais ce lien avec quiconque. Kidoo ne vous demandera jamais votre mot de passe par e-mail.
+              <strong>Conseil de sécurité:</strong> Ne partagez jamais ce code avec quiconque. Kidoo ne vous demandera jamais votre mot de passe par e-mail.
             </Text>
           </Section>
 
