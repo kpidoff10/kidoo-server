@@ -226,23 +226,25 @@ model RfidObject {
 }
 
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
-  emailVerified DateTime?
-  name         String?
-  avatar       String?
-  password     String?
-  timezoneId   String       @default("UTC")  // IANA timezone (ex: "Europe/Paris", "America/New_York")
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  isAdmin      Boolean      @default(false)
-  accounts     Account[]
-  files        File[]
-  kidoos       Kidoo[]
-  sessions     Session[]
-  tags         Tag[]
-  pushTokens   PushToken[]
-  notifications Notification[]
+  id                    String       @id @default(uuid())
+  email                 String       @unique
+  emailVerified         DateTime?
+  name                  String?
+  avatar                String?
+  password              String?
+  timezoneId            String       @default("UTC")  // IANA timezone (ex: "Europe/Paris", "America/New_York")
+  resetCode             String?      @unique          // For password reset (6-digit code)
+  resetCodeExpiresAt    DateTime?                      // Code expiration time
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  isAdmin               Boolean      @default(false)
+  accounts              Account[]
+  files                 File[]
+  kidoos                Kidoo[]
+  sessions              Session[]
+  tags                  Tag[]
+  pushTokens            PushToken[]
+  notifications         Notification[]
 
   @@map("users")
 }

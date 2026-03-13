@@ -4,7 +4,12 @@
  */
 
 export const getBaseUrl = () => {
-  // En production, utilise NEXTAUTH_URL ou la variable d'environnement
+  // Utilise API_PUBLIC_ORIGIN si disponible
+  if (process.env.API_PUBLIC_ORIGIN) {
+    return process.env.API_PUBLIC_ORIGIN;
+  }
+
+  // Fallback sur NEXTAUTH_URL
   if (process.env.NEXTAUTH_URL) {
     return process.env.NEXTAUTH_URL;
   }

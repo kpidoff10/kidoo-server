@@ -50,29 +50,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Générer un token de reset (random, 32 bytes)
-    const resetToken = crypto.randomBytes(32).toString("hex");
+    // Générer un code de reset (6 chiffres)
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Sauvegarder le token avec une date d'expiration (1 heure)
+    // Sauvegarder le code avec une date d'expiration (1 heure)
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1);
-
-    // NOTE: Vous devez ajouter ces champs à votre modèle Prisma User
-    // - resetToken: String?
-    // - resetTokenExpiresAt: DateTime?
-    //
-    // Modèle Prisma:
-    // model User {
-    //   ...
-    //   resetToken String?
-    //   resetTokenExpiresAt DateTime?
-    // }
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        resetToken,
-        resetTokenExpiresAt: expiresAt,
+        resetCode: resetCode,
+        resetCodeExpiresAt: expiresAt,
       },
     });
 
@@ -81,7 +70,7 @@ export async function POST(request: NextRequest) {
       await emailService.sendPasswordResetEmail(
         user.email,
         user.name || "Utilisateur",
-        getPasswordResetUrl(resetToken),
+        resetCode,
         60 // expires in 60 minutes
       );
     } catch (emailError) {
@@ -147,12 +136,12 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Chercher l'utilisateur avec le token valide
+    // Chercher l'utilisateur avec le code valide
     const user = await prisma.user.findFirst({
       where: {
-        resetToken: token,
-        resetTokenExpiresAt: {
-          gt: new Date(), // Token doit être encore valide
+        resetCode: token,
+        resetCodeExpiresAt: {
+          gt: new Date(), // Code doit être encore valide
         },
       },
       select: { id: true },
@@ -173,13 +162,13 @@ export async function PUT(request: NextRequest) {
     const bcrypt = require("bcryptjs");
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Mettre à jour le mot de passe et nettoyer les tokens
+    // Mettre à jour le mot de passe et nettoyer le code
     await prisma.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
-        resetToken: null,
-        resetTokenExpiresAt: null,
+        resetCode: null,
+        resetCodeExpiresAt: null,
       },
     });
 

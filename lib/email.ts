@@ -44,12 +44,12 @@ export const emailService = {
   async sendPasswordResetEmail(
     email: string,
     userName: string,
-    resetUrl: string,
+    resetCode: string,
     expiryMinutes: number = 60
   ) {
     try {
       const html = await render(
-        PasswordResetEmail({ userName, resetUrl, expiryMinutes })
+        PasswordResetEmail({ userName, resetCode, expiryMinutes })
       );
 
       const response = await resend.emails.send({

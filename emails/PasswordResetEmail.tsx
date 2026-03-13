@@ -13,13 +13,13 @@ import {
 
 interface PasswordResetEmailProps {
   userName: string;
-  resetUrl: string;
+  resetCode: string;
   expiryMinutes?: number;
 }
 
 export const PasswordResetEmail = ({
   userName,
-  resetUrl,
+  resetCode,
   expiryMinutes = 60,
 }: PasswordResetEmailProps) => {
   return (
@@ -41,27 +41,23 @@ export const PasswordResetEmail = ({
               Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe.
             </Text>
 
-            {/* Warning */}
-            <Section style={warningBox}>
-              <Text style={warningText}>
-                ⚠️ Ce lien expire dans <strong>{expiryMinutes} minutes</strong>. Si vous n'avez pas demandé cette réinitialisation, ignorez cet e-mail.
+            {/* Code Section */}
+            <Section style={codeSection}>
+              <Text style={codeLabel}>Votre code de réinitialisation:</Text>
+              <Text style={codeDisplay}>{resetCode}</Text>
+              <Text style={codeDescription}>
+                Entrez ce code dans l'application Kidoo pour réinitialiser votre mot de passe.
               </Text>
-            </Section>
-
-            {/* CTA Button */}
-            <Section style={buttonContainer}>
-              <Button style={button} href={resetUrl}>
-                Réinitialiser mon mot de passe
-              </Button>
             </Section>
 
             <Hr style={hr} />
 
-            {/* Alternative */}
-            <Text style={alternativeText}>
-              Ou copiez ce lien dans votre navigateur:
-            </Text>
-            <Text style={urlText}>{resetUrl}</Text>
+            {/* Warning */}
+            <Section style={warningBox}>
+              <Text style={warningText}>
+                ⚠️ Ce code expire dans <strong>{expiryMinutes} minutes</strong>. Si vous n'avez pas demandé cette réinitialisation, ignorez cet e-mail.
+              </Text>
+            </Section>
 
             <Hr style={hr} />
 
@@ -150,22 +146,35 @@ const warningText = {
   margin: "0",
 };
 
-const buttonContainer = {
-  padding: "27px 0",
+const codeSection = {
+  backgroundColor: "#f0f4f8",
+  borderLeft: "4px solid #d32f2f",
+  padding: "20px 16px",
+  margin: "16px 0",
+  borderRadius: "4px",
+  textAlign: "center" as const,
 };
 
-const button = {
-  backgroundColor: "#d32f2f",
-  borderRadius: "6px",
-  color: "#fff",
-  fontSize: "16px",
+const codeLabel = {
+  fontSize: "14px",
+  color: "#525252",
+  margin: "0 0 12px 0",
+  fontWeight: "500",
+};
+
+const codeDisplay = {
+  fontSize: "32px",
   fontWeight: "bold",
-  textDecoration: "none",
-  textAlign: "center" as const,
-  display: "block",
-  padding: "12px 20px",
-  margin: "0 auto",
-  width: "fit-content",
+  color: "#d32f2f",
+  margin: "0",
+  letterSpacing: "4px",
+  fontFamily: "monospace",
+};
+
+const codeDescription = {
+  fontSize: "13px",
+  color: "#666",
+  margin: "12px 0 0 0",
 };
 
 const hr = {
