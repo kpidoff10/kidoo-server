@@ -20,7 +20,7 @@ lib/
 
 #### **Templates Email**
 ```
-app/components/emails/
+emails/
 ├── WelcomeEmail.tsx           # Bienvenue après inscription ✅
 ├── PasswordResetEmail.tsx     # Réinitialisation mot de passe ✅
 └── NightimeAlertEmail.tsx     # Alertes device/sommeil ✅

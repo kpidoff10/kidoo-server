@@ -65,9 +65,9 @@ NEXTAUTH_URL=http://localhost:3000
 ```
 lib/
 ├── email.ts                  # Service principal d'envoi
-├── email-constants.ts        # URLs et constantes
+└── email-constants.ts        # URLs et constantes
 
-app/components/emails/
+emails/
 ├── WelcomeEmail.tsx          # Template bienvenue
 ├── PasswordResetEmail.tsx    # Template reset password
 └── NightimeAlertEmail.tsx    # Template notifications

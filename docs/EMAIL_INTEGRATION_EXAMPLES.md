@@ -213,7 +213,7 @@ export async function PATCH(request: NextRequest) {
     </Html>
   );
 
-  const html = render(
+  const html = await render(
     ConfigUpdatedEmail({
       userName: user.name,
       deviceName: kidoo.name,
@@ -260,7 +260,7 @@ const PurchaseConfirmationEmail = ({ userName, productName, price, orderId }) =>
 );
 
 // ... plus tard ...
-const html = render(
+const html = await render(
   PurchaseConfirmationEmail({
     userName: user.name,
     productName: 'Pack Kidoo Premium',
@@ -306,7 +306,7 @@ async function handleRequest() {
 ### Pattern: Créer un template réutilisable
 
 ```typescript
-// app/components/emails/BaseEmail.tsx
+// emails/BaseEmail.tsx
 export const BaseEmail = ({ title, children }) => (
   <Html>
     <Head />

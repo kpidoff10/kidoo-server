@@ -1,8 +1,8 @@
 import { Resend } from "resend";
 import { render } from "@react-email/components";
-import { WelcomeEmail } from "@/app/components/emails/WelcomeEmail";
-import { PasswordResetEmail } from "@/app/components/emails/PasswordResetEmail";
-import { NighttimeAlertEmail } from "@/app/components/emails/NightimeAlertEmail";
+import { WelcomeEmail } from "@/emails/WelcomeEmail";
+import { PasswordResetEmail } from "@/emails/PasswordResetEmail";
+import { NighttimeAlertEmail } from "@/emails/NightimeAlertEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -16,7 +16,7 @@ export const emailService = {
    */
   async sendWelcomeEmail(email: string, userName: string, loginUrl: string) {
     try {
-      const html = render(WelcomeEmail({ userName, loginUrl }));
+      const html = await render(WelcomeEmail({ userName, loginUrl }));
 
       const response = await resend.emails.send({
         from: getFromEmail(),
@@ -48,7 +48,7 @@ export const emailService = {
     expiryMinutes: number = 60
   ) {
     try {
-      const html = render(
+      const html = await render(
         PasswordResetEmail({ userName, resetUrl, expiryMinutes })
       );
 
@@ -83,7 +83,7 @@ export const emailService = {
     appUrl: string
   ) {
     try {
-      const html = render(
+      const html = await render(
         NighttimeAlertEmail({
           userName,
           kidooName,
