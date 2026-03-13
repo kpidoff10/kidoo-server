@@ -29,9 +29,32 @@ function Smile({ className }: { className?: string }) {
   );
 }
 
+function Newspaper({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn('size-4 shrink-0', className)}
+      aria-hidden
+    >
+      <path d="M4 4h16v10H4z" />
+      <path d="M4 14h8" />
+      <path d="M4 18h6" />
+      <path d="M16 14h4" />
+      <path d="M16 18h4" />
+    </svg>
+  );
+}
+
 const MENU_ITEMS = [
   { href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard },
   { href: '/admin/personnages', label: 'Personnages', icon: Smile },
+  { href: '/admin/posts', label: 'Actualités', icon: Newspaper },
 ] as const;
 
 const FIRMWARE_BASE = '/admin/firmware';
