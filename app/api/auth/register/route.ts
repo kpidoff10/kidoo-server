@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { generateTokens } from '@/lib/jwt';
 import { registerSchema, emailSchema } from '@/shared';
+import { emailService } from '@/lib/email';
+import { getLoginUrl } from '@/lib/email-constants';
 
 /**
  * POST /api/auth/register
@@ -92,6 +94,18 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
     });
+
+    // Envoyer un email de bienvenue (asynchrone, non-bloquant)
+    try {
+      await emailService.sendWelcomeEmail(
+        user.email,
+        user.name || 'Utilisateur',
+        getLoginUrl()
+      );
+    } catch (emailError) {
+      // Log l'erreur mais ne bloque pas la réponse
+      console.error('Erreur lors de l\'envoi du welcome email:', emailError);
+    }
 
     return NextResponse.json(
       {
