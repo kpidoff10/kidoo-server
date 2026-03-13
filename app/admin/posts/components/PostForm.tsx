@@ -7,12 +7,31 @@ import { postFormSchema, PostFormData } from './postFormSchema';
 import { Post } from '@/app/admin/lib/postsApi';
 import { RichTextEditor } from './RichTextEditor';
 import { ImageUpload } from './ImageUpload';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface PostFormProps {
   initialData?: Post;
   onSubmit: (data: PostFormData) => Promise<void>;
   isLoading?: boolean;
 }
+
+const TYPE_LABELS = {
+  news: 'Actualité',
+  update: 'Mise à jour',
+  promo: 'Promotion',
+  feature: 'Nouveauté',
+};
 
 export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
   const {
@@ -21,6 +40,7 @@ export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
     formState: { errors },
     watch,
     control,
+    setValue,
   } = useForm<PostFormData>({
     resolver: zodResolver(postFormSchema),
     defaultValues: initialData
@@ -39,52 +59,61 @@ export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
   });
 
   const published = watch('published');
+  const typeValue = watch('type');
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {/* Type */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Type</label>
-        <select
-          {...register('type')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        >
-          <option value="news">Actualité</option>
-          <option value="update">Mise à jour</option>
-          <option value="promo">Promotion</option>
-          <option value="feature">Nouveauté</option>
-        </select>
-        {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type.message}</p>}
+      <div className="space-y-3">
+        <Label htmlFor="type">Type</Label>
+        <Controller
+          name="type"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id="type">
+                <SelectValue placeholder="Sélectionner un type" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TYPE_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {errors.type && <p className="text-sm text-destructive">{errors.type.message}</p>}
       </div>
 
       {/* Title */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Titre</label>
-        <input
-          type="text"
+      <div className="space-y-3">
+        <Label htmlFor="title">Titre</Label>
+        <Input
+          id="title"
           {...register('title')}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           placeholder="Titre de l'actualité"
         />
-        {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+        {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
       </div>
 
       {/* Excerpt */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Résumé (optionnel)</label>
-        <textarea
+      <div className="space-y-3">
+        <Label htmlFor="excerpt">Résumé (optionnel)</Label>
+        <Textarea
+          id="excerpt"
           {...register('excerpt')}
-          rows={2}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           placeholder="Courte description visible sur les cards"
+          className="resize-none"
         />
-        {errors.excerpt && <p className="mt-1 text-sm text-red-600">{errors.excerpt.message}</p>}
+        {errors.excerpt && <p className="text-sm text-destructive">{errors.excerpt.message}</p>}
       </div>
 
       {/* Image Upload */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Image (optionnel)</label>
+      <div className="space-y-3">
+        <Label>Image (optionnel)</Label>
         <Controller
           name="imageUrl"
           control={control}
@@ -96,13 +125,13 @@ export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
             />
           )}
         />
-        {uploadError && <p className="mt-2 text-sm text-red-600">{uploadError}</p>}
-        {errors.imageUrl && <p className="mt-1 text-sm text-red-600">{errors.imageUrl.message}</p>}
+        {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
+        {errors.imageUrl && <p className="text-sm text-destructive">{errors.imageUrl.message}</p>}
       </div>
 
       {/* Content */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Contenu</label>
+      <div className="space-y-3">
+        <Label>Contenu</Label>
         <Controller
           name="content"
           control={control}
@@ -114,35 +143,48 @@ export function PostForm({ initialData, onSubmit, isLoading }: PostFormProps) {
             />
           )}
         />
-        {errors.content && <p className="mt-2 text-sm text-red-600">{errors.content.message}</p>}
+        {errors.content && <p className="text-sm text-destructive">{errors.content.message}</p>}
       </div>
 
       {/* Published */}
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          {...register('published')}
-          id="published"
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+      <div className="flex items-center space-x-3 rounded-lg border border-input p-4 bg-muted/30">
+        <Controller
+          name="published"
+          control={control}
+          render={({ field }) => (
+            <Checkbox
+              id="published"
+              checked={field.value}
+              onCheckedChange={field.onChange}
+            />
+          )}
         />
-        <label htmlFor="published" className="ml-2 block text-sm text-gray-900">
-          Publier maintenant
-        </label>
+        <div className="flex-1">
+          <Label htmlFor="published" className="font-semibold cursor-pointer">
+            Publier maintenant
+          </Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {published ? 'Cet article sera visible à tous' : 'Cet article restera en brouillon'}
+          </p>
+        </div>
         {published && (
-          <span className="ml-4 inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800">
+          <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
             ✓ Visible
           </span>
         )}
       </div>
 
       {/* Submit */}
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-      >
-        {isLoading ? 'Enregistrement...' : initialData ? 'Mettre à jour' : 'Créer'}
-      </button>
+      <div className="flex gap-3 pt-4">
+        <Button
+          type="submit"
+          disabled={isLoading}
+          size="lg"
+          className="flex-1"
+        >
+          {isLoading ? 'Enregistrement...' : initialData ? 'Mettre à jour' : 'Créer'}
+        </Button>
+      </div>
     </form>
   );
 }

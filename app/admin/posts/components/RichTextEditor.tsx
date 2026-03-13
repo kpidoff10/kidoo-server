@@ -43,17 +43,18 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
   }
 
   return (
-    <div className="border rounded-md overflow-hidden bg-white">
+    <div className="border border-input rounded-lg overflow-hidden bg-background">
       {/* Toolbar */}
-      <div className="border-b bg-slate-50 p-2 flex flex-wrap gap-1">
+      <div className="border-b bg-muted p-3 flex flex-wrap gap-2">
         <Button
           type="button"
           size="sm"
           variant={editor.isActive('bold') ? 'default' : 'outline'}
           onClick={() => editor.chain().focus().toggleBold().run()}
           title="Gras (Ctrl+B)"
+          className="font-bold"
         >
-          <strong>B</strong>
+          B
         </Button>
 
         <Button
@@ -62,8 +63,9 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           variant={editor.isActive('italic') ? 'default' : 'outline'}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           title="Italique (Ctrl+I)"
+          className="italic"
         >
-          <em>I</em>
+          I
         </Button>
 
         <Button
@@ -72,8 +74,9 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           variant={editor.isActive('strike') ? 'default' : 'outline'}
           onClick={() => editor.chain().focus().toggleStrike().run()}
           title="Barré"
+          className="line-through"
         >
-          <s>S</s>
+          S
         </Button>
 
         <div className="w-px bg-slate-300" />
@@ -212,7 +215,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
       {/* Editor */}
       <EditorContent
         editor={editor}
-        className="prose prose-sm max-w-none p-4 min-h-64 focus:outline-none"
+        className="prose prose-base max-w-none p-4 min-h-[400px] focus:outline-none [&_.ProseMirror]:min-h-[360px] [&_.ProseMirror]:p-4"
       />
     </div>
   );
