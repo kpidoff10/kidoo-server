@@ -54,9 +54,13 @@ export function PostCard({ post, onDelete }: PostCardProps) {
           <span className={cn('inline-block rounded-full px-2 py-1 text-xs font-medium', colors.badge)}>
             {typeLabel}
           </span>
-          {post.published && (
+          {post.published ? (
             <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
               ✓ Publié
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-700">
+              📝 Brouillon
             </span>
           )}
         </div>
