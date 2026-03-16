@@ -140,7 +140,7 @@ model EmotionVideo {
   loopTimeline  Json
   totalFrames   Int?
   idxUrl        String?
-  animUrl       String?    // Format .anim (palette + RLE) pour ESP32 pixel-perfect
+  animUrl       String?
   emotion       Emotion    @relation(fields: [emotionId], references: [id], onDelete: Cascade)
   sourceClip    Clip       @relation(fields: [sourceClipId], references: [id], onDelete: Cascade)
 
@@ -226,25 +226,25 @@ model RfidObject {
 }
 
 model User {
-  id                    String       @id @default(uuid())
-  email                 String       @unique
-  emailVerified         DateTime?
-  name                  String?
-  avatar                String?
-  password              String?
-  timezoneId            String       @default("UTC")  // IANA timezone (ex: "Europe/Paris", "America/New_York")
-  resetCode             String?      @unique          // For password reset (6-digit code)
-  resetCodeExpiresAt    DateTime?                      // Code expiration time
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  isAdmin               Boolean      @default(false)
-  accounts              Account[]
-  files                 File[]
-  kidoos                Kidoo[]
-  sessions              Session[]
-  tags                  Tag[]
-  pushTokens            PushToken[]
-  notifications         Notification[]
+  id                 String         @id @default(uuid())
+  email              String         @unique
+  emailVerified      DateTime?
+  name               String?
+  avatar             String?
+  password           String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  isAdmin            Boolean        @default(false)
+  timezoneId         String         @default("UTC")
+  resetCode          String?        @unique
+  resetCodeExpiresAt DateTime?
+  accounts           Account[]
+  files              File[]
+  kidoos             Kidoo[]
+  notifications      Notification[]
+  pushTokens         PushToken[]
+  sessions           Session[]
+  tags               Tag[]
 
   @@map("users")
 }
@@ -262,16 +262,16 @@ model PushToken {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  kidooId   String?  // Dénormalisé pour queries efficaces
-  type      String   // ex: 'nighttime-alert', 'device-offline', etc.
-  isRead    Boolean  @default(false)
+  type      String
+  isRead    Boolean   @default(false)
   readAt    DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kidoo     Kidoo?   @relation(fields: [kidooId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  kidooId   String?
+  kidoo     Kidoo?    @relation(fields: [kidooId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([kidooId])
@@ -306,9 +306,10 @@ model Kidoo {
   publicKey           String?
   configBasic         KidooConfigBasic?
   configDream         KidooConfigDream?
+  configSound         KidooConfigSound?
   user                User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tags                Tag[]
   notifications       Notification[]
+  tags                Tag[]
 
   @@index([userId])
   @@index([deviceId])
@@ -435,31 +436,31 @@ model KidooConfigBasic {
 }
 
 model KidooConfigDream {
-  id                   String                            @id @default(uuid())
-  kidooId              String                            @unique
-  colorR               Int?
-  colorG               Int?
-  colorB               Int?
-  brightness           Int?
-  allNight             Boolean                           @default(false)
-  effect               String?
+  id                        String                            @id @default(uuid())
+  kidooId                   String                            @unique
+  colorR                    Int?
+  colorG                    Int?
+  colorB                    Int?
+  brightness                Int?
+  allNight                  Boolean                           @default(false)
+  effect                    String?
   wakeupColorR              Int?
   wakeupColorG              Int?
   wakeupColorB              Int?
   wakeupBrightness          Int?
-  wakeupAutoShutdown        Boolean                           @default(true)
-  wakeupAutoShutdownMinutes Int?                             @default(30)
+  createdAt                 DateTime                          @default(now())
+  updatedAt                 DateTime                          @updatedAt
+  nighttimeAlertEnabled     Boolean                           @default(false)
   defaultColorR             Int?
-  defaultColorG        Int?
-  defaultColorB        Int?
-  defaultBrightness    Int?
-  defaultEffect        String?
-  nighttimeAlertEnabled Boolean                          @default(false)
-  createdAt            DateTime                          @default(now())
-  updatedAt            DateTime                          @updatedAt
-  kidoo            Kidoo                             @relation(fields: [kidooId], references: [id], onDelete: Cascade)
-  bedtimeSchedules KidooConfigDreamBedtimeSchedule[]
-  wakeupSchedules  KidooConfigDreamWakeupSchedule[]
+  defaultColorG             Int?
+  defaultColorB             Int?
+  defaultBrightness         Int?
+  defaultEffect             String?
+  wakeupAutoShutdown        Boolean                           @default(true)
+  wakeupAutoShutdownMinutes Int?                              @default(30)
+  kidoo                     Kidoo                             @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+  bedtimeSchedules          KidooConfigDreamBedtimeSchedule[]
+  wakeupSchedules           KidooConfigDreamWakeupSchedule[]
 
   @@index([kidooId])
   @@map("kidoo_config_dream")
@@ -495,6 +496,40 @@ model KidooConfigDreamWakeupSchedule {
   @@unique([kidooConfigDreamId, weekday])
   @@index([kidooConfigDreamId])
   @@map("kidoo_config_dream_wakeup_schedule")
+}
+
+model KidooConfigSound {
+  id        String   @id @default(uuid())
+  kidooId   String   @unique
+  colorR    Int?
+  colorG    Int?
+  colorB    Int?
+  brightness Int?
+  effect    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  kidoo     Kidoo    @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+
+  @@index([kidooId])
+  @@map("kidoo_config_sound")
+}
+
+model Post {
+  id          String    @id @default(uuid())
+  title       String
+  excerpt     String?
+  content     String
+  imageUrl    String?
+  type        PostType  @default(news)
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([type])
+  @@index([published])
+  @@index([publishedAt])
+  @@map("posts")
 }
 
 enum TagType {
@@ -570,24 +605,8 @@ enum EmotionDeviceMode {
 enum KidooModel {
   basic
   dream
-}
-
-model Post {
-  id          String      @id @default(uuid())
-  title       String
-  excerpt     String?
-  content     String
-  imageUrl    String?
-  type        PostType    @default(news)
-  published   Boolean     @default(false)
-  publishedAt DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@index([type])
-  @@index([published])
-  @@index([publishedAt])
-  @@map("posts")
+  gotchi
+  sound
 }
 
 enum PostType {
