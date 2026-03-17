@@ -14,34 +14,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Extraire le userId du username format: kidoo_user_{userId}
+ * Identifier le type de client et extraire les infos
+ * Formats:
+ * - UUID (app): ccc16959-e2bd-4640-b5cd-99e6bb4c04b3
+ * - MAC (ESP32): 80B54ED96148
+ * - Server: server
  */
-function extractUserIdFromUsername(username: string): string | null {
-  const match = username.match(/^kidoo_user_(.+)$/);
-  return match ? match[1] : null;
+function identifyClient(username: string): { type: 'app' | 'device' | 'server'; id: string } {
+  // Server
+  if (username === 'server') {
+    return { type: 'server', id: 'server' };
+  }
+
+  // UUID (app)
+  if (username.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    return { type: 'app', id: username };
+  }
+
+  // MAC address (ESP32) - 12 hex chars
+  if (username.match(/^[0-9A-F]{12}$/i)) {
+    return { type: 'device', id: username };
+  }
+
+  return { type: 'app', id: username }; // Fallback
 }
 
 /**
  * Vérifier si l'user peut accéder au topic
  * Rules:
- * - kidoo_user_* peut accéder à kidoo/+/telemetry (publier et souscrire)
- * - ESP32 (username=kidoo_app) peut publier sur ses topics
+ * - App (UUID): peut subscribe + publish sur kidoo/+/telemetry ET kidoo/+/cmd
+ * - ESP32 (MAC): peut publish sur kidoo/{sienMAC}/telemetry ET subscribe sur kidoo/{sienMAC}/cmd
+ * - Server: accès complet
  */
 function canAccessTopic(username: string, topic: string, action: string): boolean {
-  // ESP32 : peut publier sur ses topics
-  if (username === 'kidoo_app') {
-    if (action === 'publish' && topic.startsWith('kidoo/')) {
+  const client = identifyClient(username);
+
+  if (client.type === 'server') {
+    // Server: accès complet à tous les topics
+    return true;
+  }
+
+  if (client.type === 'device') {
+    // ESP32 (MAC): peut publier sur son /telemetry ET subscribe sur son /cmd
+    const mac = client.id;
+    if (action === 'publish' && topic === `kidoo/${mac}/telemetry`) {
+      return true;
+    }
+    if (action === 'subscribe' && topic === `kidoo/${mac}/cmd`) {
       return true;
     }
     return false;
   }
 
-  // App users: kidoo_user_*
-  const userId = extractUserIdFromUsername(username);
-  if (userId) {
-    // Peut accéder à kidoo/+/telemetry (publier et souscrire)
-    // TODO: Ajouter une vérification pour vérifier que l'user a vraiment ce device
-    if (topic.match(/^kidoo\/[A-F0-9]{12}\/telemetry$/)) {
+  if (client.type === 'app') {
+    // App (UUID): peut subscribe ET publish sur /telemetry ET /cmd
+    // TODO: Ajouter une vérification DB pour vérifier que l'app a vraiment ce device
+    if (topic.match(/^kidoo\/[A-F0-9]{12}\/telemetry$/) || topic.match(/^kidoo\/[A-F0-9]{12}\/cmd$/)) {
       return true;
     }
     return false;

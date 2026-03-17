@@ -14,8 +14,12 @@ import { createErrorResponse } from './api-response';
  * @returns L'userId ou null si non trouvé
  */
 export function getUserIdFromRequest(request: NextRequest): string | null {
-  // Priorité 1: JWT Bearer token
-  const authHeader = request.headers.get('Authorization');
+  // Priorité 1: JWT Bearer token en header (try both cases for compatibility)
+  let authHeader = request.headers.get('authorization');
+  if (!authHeader) {
+    authHeader = request.headers.get('Authorization');
+  }
+
   if (authHeader?.startsWith('Bearer ')) {
     const token = extractTokenFromHeader(authHeader);
     if (token) {

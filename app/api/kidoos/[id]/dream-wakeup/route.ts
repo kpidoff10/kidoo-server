@@ -8,7 +8,6 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { updateDreamWakeupConfigSchema, hexToRgb, saturateRgbToMax } from '@/shared';
-import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 
 /**
  * GET /api/kidoos/[id]/dream-wakeup
@@ -241,44 +240,6 @@ export const PATCH = withAuth(async (
       });
     }
 
-    // Envoyer la configuration à l'ESP32 via MQTT
-    if (kidoo.macAddress && isMqttConfigured()) {
-      try {
-        // Construire le message mqtt avec la configuration (toujours envoyer weekdaySchedule pour que l'ESP reçoive la config complète)
-        const mqttParams: Record<string, unknown> = {
-          colorR: updatedConfig.wakeupColorR,
-          colorG: updatedConfig.wakeupColorG,
-          colorB: updatedConfig.wakeupColorB,
-          brightness: updatedConfig.wakeupBrightness,
-          autoShutdown: updatedConfig.wakeupAutoShutdown ?? true,
-          autoShutdownMinutes: updatedConfig.wakeupAutoShutdownMinutes ?? 30,
-          weekdaySchedule: responseWeekdaySchedule && Object.keys(responseWeekdaySchedule).length > 0
-            ? Object.fromEntries(
-                Object.entries(responseWeekdaySchedule).map(([k, v]) => [k.toLowerCase(), v])
-              )
-            : {},
-        };
-
-        const mqttMessage: Record<string, unknown> = {
-          action: 'set-wakeup-config',
-          params: mqttParams,
-        };
-
-        console.log('[DREAM-WAKEUP] Envoi configuration via MQTT:', JSON.stringify(mqttMessage, null, 2));
-        await sendCommand(kidoo.macAddress, 'set-wakeup-config', mqttMessage.params as Record<string, unknown>);
-        console.log('[DREAM-WAKEUP] Configuration envoyée avec succès via MQTT');
-      } catch (error) {
-        console.error('[DREAM-WAKEUP] Erreur lors de l\'envoi mqtt:', error);
-        // Ne pas faire échouer la requête si MQTT échoue, la config est déjà en base
-      }
-    } else {
-      if (!kidoo.macAddress) {
-        console.warn('[DREAM-WAKEUP] Adresse MAC manquante, impossible d\'envoyer via MQTT');
-      }
-      if (!isMqttConfigured()) {
-        console.warn('[DREAM-WAKEUP] MQTT non configuré, impossible d\'envoyer la configuration');
-      }
-    }
 
     return createSuccessResponse(
       {

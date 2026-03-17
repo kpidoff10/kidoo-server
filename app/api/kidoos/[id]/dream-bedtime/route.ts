@@ -8,7 +8,6 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { updateDreamBedtimeConfigSchema, hexToRgb, saturateRgbToMax } from '@/shared';
 
 /**
@@ -265,48 +264,6 @@ export const PATCH = withAuth(async (
       });
     }
 
-    // Envoyer la configuration à l'ESP32 via MQTT
-    if (kidoo.macAddress && isMqttConfigured()) {
-      try {
-        // Construire les paramètres mqtt (toujours envoyer weekdaySchedule pour que l'ESP reçoive la config complète)
-        const params: Record<string, unknown> = {
-          colorR: updatedConfig.colorR ?? rgb.r,
-          colorG: updatedConfig.colorG ?? rgb.g,
-          colorB: updatedConfig.colorB ?? rgb.b,
-          brightness: updatedConfig.brightness,
-          allNight: updatedConfig.allNight,
-          weekdaySchedule: responseWeekdaySchedule && Object.keys(responseWeekdaySchedule).length > 0
-            ? Object.fromEntries(
-                Object.entries(responseWeekdaySchedule).map(([k, v]) => [k.toLowerCase(), v])
-              )
-            : {},
-        };
-
-        if (updatedConfig.effect) {
-          params.effect = updatedConfig.effect;
-        }
-
-        // Construire le message mqtt avec la configuration
-        const mqttMessage: Record<string, unknown> = {
-          action: 'set-bedtime-config',
-          params,
-        };
-
-        console.log('[DREAM-BEDTIME] Envoi configuration via MQTT:', JSON.stringify(mqttMessage, null, 2));
-        await sendCommand(kidoo.macAddress, 'set-bedtime-config', mqttMessage.params as Record<string, unknown>);
-        console.log('[DREAM-BEDTIME] Configuration envoyée avec succès via MQTT');
-      } catch (error) {
-        console.error('[DREAM-BEDTIME] Erreur lors de l\'envoi mqtt:', error);
-        // Ne pas faire échouer la requête si MQTT échoue, la config est déjà en base
-      }
-    } else {
-      if (!kidoo.macAddress) {
-        console.warn('[DREAM-BEDTIME] Adresse MAC manquante, impossible d\'envoyer via MQTT');
-      }
-      if (!isMqttConfigured()) {
-        console.warn('[DREAM-BEDTIME] MQTT non configuré, impossible d\'envoyer la configuration');
-      }
-    }
 
     return createSuccessResponse(
       {

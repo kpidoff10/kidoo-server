@@ -7,7 +7,6 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 
 /**
  * GET /api/kidoos/[id]/dream-nighttime-alert
@@ -89,12 +88,6 @@ export const PATCH = withAuth(async (
       },
     });
 
-    // Envoyer la config à l'ESP via MQTT (comme brightness)
-    if (kidoo.macAddress && isMqttConfigured()) {
-      await sendCommand(kidoo.macAddress, 'set-nighttime-alert', {
-        enabled: nighttimeAlertEnabled,
-      });
-    }
 
     return createSuccessResponse(
       { nighttimeAlertEnabled },

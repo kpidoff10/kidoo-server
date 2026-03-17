@@ -18,6 +18,7 @@ import { KidoosErrors } from './errors';
 export const GET = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const { userId } = request;
+    console.log('[Kidoos GET] Request received, userId:', userId);
 
     // Récupérer les kidoos de l'utilisateur avec leurs configurations
     const kidoos = await prisma.kidoo.findMany({
@@ -35,6 +36,7 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
     });
 
     // Helper pour convertir une config (BigInt → Number, dates → ISO)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const convertConfigStorage = (config: any) => config ? {
       ...config,
       storageTotalBytes: config.storageTotalBytes ? Number(config.storageTotalBytes) : null,

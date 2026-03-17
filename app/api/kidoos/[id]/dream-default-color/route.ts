@@ -7,7 +7,6 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 
 // Valeurs par défaut
 const DEFAULT_COLOR_R = 255;
@@ -138,16 +137,6 @@ export const PATCH = withAuth(async (
       },
     });
 
-    // Envoyer la config à l'ESP via MQTT
-    if (kidoo.macAddress && isMqttConfigured()) {
-      await sendCommand(kidoo.macAddress, 'set-default-config', {
-        colorR: colorR ?? DEFAULT_COLOR_R,
-        colorG: colorG ?? DEFAULT_COLOR_G,
-        colorB: colorB ?? DEFAULT_COLOR_B,
-        brightness: brightness ?? DEFAULT_BRIGHTNESS,
-        effect: effect ?? DEFAULT_EFFECT,
-      });
-    }
 
     return createSuccessResponse(
       {

@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
-import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { sleepTimeoutCommandSchema, SLEEP_TIMEOUT_LIMITS } from '@/shared';
 import { Kidoo } from '@kidoo/shared/prisma';
 
@@ -75,23 +74,6 @@ export async function PATCH(
       );
     }
 
-    // Vérifier mqtt
-    if (!isMqttConfigured()) {
-      return NextResponse.json(
-        { success: false, error: 'MQTT non configuré sur le serveur' },
-        { status: 503 }
-      );
-    }
-
-    // Envoyer la commande via MQTT
-    const sent = await sendCommand(kidoo.macAddress, 'sleep-timeout', { value });
-
-    if (!sent) {
-      return NextResponse.json(
-        { success: false, error: 'Échec de l\'envoi de la commande au Kidoo' },
-        { status: 502 }
-      );
-    }
 
     // Mettre à jour la config en base (si modèle Basic)
     await prisma.kidoo.update({

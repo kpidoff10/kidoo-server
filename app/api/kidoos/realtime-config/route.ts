@@ -9,11 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
-import { isMqttConfigured, getMqttTelemetryTopic } from '@/lib/mqtt';
+import { getMqttTelemetryTopic, getMqttCmdTopic } from '@/lib/mqtt-topics';
 
 export interface RealtimeConfigSubscription {
   topic: string;
   kidooId: string;
+  mac: string;
 }
 
 export interface RealtimeConfigResponse {
@@ -30,7 +31,10 @@ export async function GET(request: NextRequest) {
 
     const { userId } = authResult;
 
-    if (!isMqttConfigured()) {
+    const brokerUrl = process.env.MQTT_BROKER_URL_CLIENT || process.env.MQTT_BROKER_URL || '';
+
+    // Retourner config vide si pas de broker configuré
+    if (!brokerUrl) {
       return NextResponse.json({
         success: true,
         data: { brokerUrl: '', subscriptions: [] } as RealtimeConfigResponse,
@@ -42,14 +46,14 @@ export async function GET(request: NextRequest) {
       select: { id: true, macAddress: true },
     });
 
+    // Subscriptions pour les topics telemetry (app va écouter les réponses MQTT)
     const subscriptions: RealtimeConfigSubscription[] = kidoos
       .filter((k) => k.macAddress)
       .map((k) => ({
         topic: getMqttTelemetryTopic(k.macAddress!),
         kidooId: k.id,
+        mac: k.macAddress!,
       }));
-
-    const brokerUrl = process.env.MQTT_BROKER_URL_CLIENT || process.env.MQTT_BROKER_URL || '';
 
     return NextResponse.json({
       success: true,

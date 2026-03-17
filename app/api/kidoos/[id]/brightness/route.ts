@@ -1,12 +1,12 @@
 /**
  * Route API pour gérer la luminosité générale d'un Kidoo
- * PATCH /api/kidoos/[id]/brightness - Met à jour la luminosité et envoie via MQTT
+ * PATCH /api/kidoos/[id]/brightness - Met à jour la luminosité en DB
+ * La commande MQTT est envoyée directement par l'app via useKidooMutations
  */
 
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { z } from 'zod';
 
 const updateBrightnessSchema = z.object({
@@ -42,13 +42,6 @@ export const PATCH = withAuth(async (
       });
     }
 
-    // Vérifier que le Kidoo a une adresse MAC (nécessaire pour MQTT)
-    if (!kidoo.macAddress) {
-      return createErrorResponse('BAD_REQUEST', 400, {
-        message: 'Le Kidoo doit avoir une adresse MAC configurée',
-      });
-    }
-
     // Parser et valider le body
     const body = await request.json();
     const validationResult = updateBrightnessSchema.safeParse(body);
@@ -70,23 +63,6 @@ export const PATCH = withAuth(async (
         brightness,
       },
     });
-
-    // Envoyer la commande via MQTT pour mise à jour en temps réel
-    if (isMqttConfigured() && kidoo.macAddress) {
-      try {
-        const sent = await sendCommand(kidoo.macAddress, 'brightness', { value: brightness });
-        
-        if (!sent) {
-          console.error('[BRIGHTNESS] Échec de l\'envoi MQTT');
-          // Ne pas faire échouer la requête si MQTT échoue, la valeur est déjà en base
-        } else {
-          console.log('[BRIGHTNESS] Commande brightness envoyée avec succès via MQTT');
-        }
-      } catch (error) {
-        console.error('[BRIGHTNESS] Erreur lors de l\'envoi MQTT:', error);
-        // Ne pas faire échouer la requête si MQTT échoue, la valeur est déjà en base
-      }
-    }
 
     return createSuccessResponse({
       brightness,

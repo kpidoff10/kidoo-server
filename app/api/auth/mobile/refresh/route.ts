@@ -11,7 +11,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { refreshToken } = body;
 
+    console.log('[Refresh] Token provided:', !!refreshToken);
+
     if (!refreshToken) {
+      console.error('[Refresh] Refresh token manquant');
       return NextResponse.json(
         { error: 'Refresh token manquant' },
         { status: 400 }
@@ -20,8 +23,10 @@ export async function POST(request: NextRequest) {
 
     // Vérifier le refresh token
     const payload = verifyRefreshToken(refreshToken);
+    console.log('[Refresh] Verify result:', payload ? 'Valid - userId: ' + payload.userId : 'Invalid');
 
     if (!payload) {
+      console.error('[Refresh] Refresh token invalide ou expiré');
       return NextResponse.json(
         { error: 'Refresh token invalide ou expiré' },
         { status: 401 }

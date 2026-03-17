@@ -6,7 +6,6 @@
 
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { prisma } from '@/lib/prisma';
 
 export const POST = withAuth(async (
@@ -45,19 +44,6 @@ export const POST = withAuth(async (
       });
     }
 
-    if (!isMqttConfigured()) {
-      return createErrorResponse('SERVICE_UNAVAILABLE', 503, {
-        message: 'Service MQTT non configuré',
-      });
-    }
-
-    const sent = await sendCommand(kidoo.macAddress, 'nighttime-alert-ack');
-
-    if (!sent) {
-      return createErrorResponse('SERVICE_UNAVAILABLE', 503, {
-        message: 'Échec de l\'envoi du signal à la veilleuse',
-      });
-    }
 
     // Marquer la notification comme lue
     const notification = await prisma.notification.findFirst({

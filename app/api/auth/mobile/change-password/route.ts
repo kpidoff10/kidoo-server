@@ -1,43 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAccessToken, extractTokenFromHeader } from '@/lib/jwt';
 import bcrypt from 'bcryptjs';
 import { changePasswordSchema } from '@/shared';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
+import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { ChangePasswordErrors } from './errors';
 
 /**
  * POST /api/auth/mobile/change-password
  * Changer le mot de passe de l'utilisateur connecté
  */
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: AuthenticatedRequest) => {
   try {
-    // Vérifier les headers (case-insensitive)
-    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-
-    if (!token) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Token manquant',
-        },
-        { status: 401 }
-      );
-    }
-
-    const payload = verifyAccessToken(token);
-
-    if (!payload) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Token invalide ou expiré',
-        },
-        { status: 401 }
-      );
-    }
-
+    const { userId } = request;
     const body = await request.json();
 
     // Validation des données
@@ -55,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Récupérer l'utilisateur avec son mot de passe
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+      where: { id: userId },
       select: {
         id: true,
         password: true,
@@ -89,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     // Mettre à jour le mot de passe
     await prisma.user.update({
-      where: { id: payload.userId },
+      where: { id: userId },
       data: {
         password: hashedPassword,
       },
@@ -104,4 +78,4 @@ export async function POST(request: NextRequest) {
       details: error instanceof Error ? error.message : undefined,
     });
   }
-}
+});

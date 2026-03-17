@@ -8,7 +8,12 @@ import { verifyAccessToken, extractTokenFromHeader } from '@/lib/jwt';
  */
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
+    // Essayer le header (avec les deux casses pour compatibilité)
+    let authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      authHeader = request.headers.get('Authorization');
+    }
+
     const token = extractTokenFromHeader(authHeader);
 
     if (!token) {

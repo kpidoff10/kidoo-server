@@ -8,7 +8,12 @@ import { verifyAccessToken, extractTokenFromHeader } from '@/lib/jwt';
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
+    // Essayer le header (avec les deux casses pour compatibilité)
+    let authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      authHeader = request.headers.get('Authorization');
+    }
+
     const token = extractTokenFromHeader(authHeader);
 
     if (!token) {
@@ -21,6 +26,7 @@ export async function POST(request: NextRequest) {
     const payload = verifyAccessToken(token);
 
     if (!payload) {
+      console.error('[Push Token] Token invalid/expired');
       return NextResponse.json(
         { error: 'Token invalide ou expiré' },
         { status: 401 }
@@ -69,11 +75,16 @@ export async function POST(request: NextRequest) {
 
 /**
  * DELETE /api/auth/mobile/push-token
- * Supprimer le token Expo Push pour l'utilisateur connecté
+ * Supprimer le token Expo Push pour l'utilisateur connecté.
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
+    // Essayer le header (avec les deux casses pour compatibilité)
+    let authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      authHeader = request.headers.get('Authorization');
+    }
+
     const token = extractTokenFromHeader(authHeader);
 
     if (!token) {

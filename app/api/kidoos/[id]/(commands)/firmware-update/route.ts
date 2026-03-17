@@ -5,20 +5,13 @@
  *
  * Body: { "version": "1.0.1" }
  *
- * Même principe que get-info : envoie la commande via MQTT puis attend la réponse
- * (firmware-update-done ou firmware-update-failed) via l'API History.
- * Timeout explicite : si aucune réponse de l'ESP après OTA_RESPONSE_TIMEOUT_MS, retourne 408.
+ * Valide la requête et retourne success. L'app envoie la commande MQTT directement au device.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
-import { KidooCommandAction } from '@kidoo/shared';
-import { sendCommand, isMqttConfigured, waitForFirmwareUpdateResult } from '@/lib/mqtt';
 import { firmwareUpdateCommandSchema } from '@/shared';
-
-/** Délai max d'attente de la réponse OTA (done/failed) de l'ESP. Au-delà → 408 Request Timeout. */
-const OTA_RESPONSE_TIMEOUT_MS = 5 * 60 * 1000; // 5 min
 
 /**
  * POST /api/kidoos/[id]/firmware-update
@@ -84,52 +77,12 @@ export async function POST(
       );
     }
 
-    if (!isMqttConfigured()) {
-      return NextResponse.json(
-        { success: false, error: 'MQTT non configuré sur le serveur' },
-        { status: 503 }
-      );
-    }
-
-    const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.FirmwareUpdate, {
-      version,
-    });
-
-    if (!sent) {
-      return NextResponse.json(
-        { success: false, error: "Échec de l'envoi de la commande au Kidoo" },
-        { status: 502 }
-      );
-    }
-
-    // Attendre la réponse de l'ESP (done/failed) comme pour get-info
-    const result = await waitForFirmwareUpdateResult(
-      kidoo.macAddress,
-      version,
-      { timeoutMs: OTA_RESPONSE_TIMEOUT_MS, pollIntervalMs: 1500 }
-    );
-
-    if (result === null) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'timeout',
-          message: 'Aucune réponse du Kidoo dans le délai imparti. Vérifiez qu\'il est connecté au WiFi et relancez si besoin.',
-        },
-        { status: 408 }
-      );
-    }
-
-    if (result.status === 'done') {
-      await prisma.kidoo.update({
-        where: { id: kidoo.id },
-        data: { firmwareVersion: result.version as string },
-      });
-    }
+    // Validation OK - l'app enverra la commande MQTT directement
+    console.log(`Firmware update request validated for kidoo ${id} (version ${version})`);
 
     return NextResponse.json({
       success: true,
-      data: result,
+      message: 'Commande firmware prête à être envoyée par l\'app',
     });
   } catch (error) {
     console.error('Erreur lors du lancement de la mise à jour firmware:', error);
