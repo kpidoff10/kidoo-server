@@ -42,7 +42,7 @@ export async function GET(
     // Vérifier que le Kidoo existe et appartient à l'utilisateur
     const kidoo = await prisma.kidoo.findUnique({
       where: { id },
-      include: { configBasic: true },
+      include: { configBasic: true, configDream: true, configSound: true },
     });
 
     if (!kidoo) {
@@ -135,16 +135,31 @@ export async function GET(
 }
 
 // Type pour le kidoo avec sa config
+type ConfigWithStorage = {
+  storageTotalBytes?: bigint | null;
+  storageFreeBytes?: bigint | null;
+  storageUsedBytes?: bigint | null;
+  storageLastUpdated?: Date | null;
+  updatedAt?: Date | null;
+};
+
 type KidooWithConfig = Pick<Kidoo, 'id' | 'name' | 'model' | 'macAddress'> & {
-  configBasic: Pick<KidooConfigBasic, 'storageTotalBytes' | 'storageFreeBytes' | 'storageUsedBytes' | 'storageLastUpdated' | 'updatedAt'> | null;
+  configBasic: ConfigWithStorage | null;
+  configDream: ConfigWithStorage | null;
+  configSound: ConfigWithStorage | null;
 };
 
 /**
  * Renvoie les données en cache de la base de données
+ * Utilise la config appropriée selon le modèle (Dream, Sound, Basic)
  */
 function returnCachedData(kidoo: KidooWithConfig, reason: string) {
-  const config = kidoo.configBasic;
-  
+  // Sélectionner la config appropriée selon le modèle
+  const config =
+    kidoo.model === 'dream' ? kidoo.configDream :
+    kidoo.model === 'sound' ? kidoo.configSound :
+    kidoo.configBasic;
+
   // Construire les données depuis la base
   const cachedData = {
     type: 'info',
@@ -170,6 +185,7 @@ function returnCachedData(kidoo: KidooWithConfig, reason: string) {
 
 /**
  * Met à jour les informations du Kidoo en base de données
+ * Traite le stockage pour tous les modèles (Basic, Dream, Sound)
  */
 async function updateKidooInfo(
   kidooId: string,
@@ -192,29 +208,54 @@ async function updateKidooInfo(
       });
     }
 
-    // Pour le modèle Basic, mettre à jour la config storage
+    // Extraire les infos de stockage
+    const storage = info.storage as { total?: number; free?: number; used?: number } | undefined;
+    console.log(`[GET-INFO] Storage info:`, storage);
+    console.log(`[GET-INFO] Storage.total type:`, typeof storage?.total, `value:`, storage?.total);
+
+    const storageUpdate = storage?.total ? {
+      storageTotalBytes: BigInt(storage.total),
+      storageFreeBytes: storage.free ? BigInt(storage.free) : undefined,
+      storageUsedBytes: storage.used ? BigInt(storage.used) : undefined,
+      storageLastUpdated: new Date(),
+    } : {};
+
+    console.log(`[GET-INFO] StorageUpdate empty?:`, Object.keys(storageUpdate).length === 0);
+    console.log(`[GET-INFO] StorageUpdate for model ${model}:`, storageUpdate);
+
+    // Mettre à jour la config de stockage selon le modèle
     if (model === 'basic') {
-      const storage = info.storage as { total?: number; free?: number; used?: number } | undefined;
-      
       await prisma.kidooConfigBasic.upsert({
         where: { kidooId },
-        update: {
-          storageTotalBytes: storage?.total ? BigInt(storage.total) : undefined,
-          storageFreeBytes: storage?.free ? BigInt(storage.free) : undefined,
-          storageUsedBytes: storage?.used ? BigInt(storage.used) : undefined,
-          storageLastUpdated: new Date(),
-        },
+        update: storageUpdate,
         create: {
           kidooId,
-          storageTotalBytes: storage?.total ? BigInt(storage.total) : null,
-          storageFreeBytes: storage?.free ? BigInt(storage.free) : null,
-          storageUsedBytes: storage?.used ? BigInt(storage.used) : null,
-          storageLastUpdated: new Date(),
+          ...storageUpdate,
         },
       });
+    } else if (model === 'dream') {
+      await prisma.kidooConfigDream.upsert({
+        where: { kidooId },
+        update: storageUpdate,
+        create: {
+          kidooId,
+          ...storageUpdate,
+        },
+      });
+    } else if (model === 'sound') {
+      console.log(`[GET-INFO] Updating KidooConfigSound for ${kidooId}`);
+      await prisma.kidooConfigSound.upsert({
+        where: { kidooId },
+        update: storageUpdate,
+        create: {
+          kidooId,
+          ...storageUpdate,
+        },
+      });
+      console.log(`[GET-INFO] KidooConfigSound updated successfully`);
     }
-      
-    console.log(`[GET-INFO] Base de données mise à jour pour ${kidooId}`);
+
+    console.log(`[GET-INFO] Base de données mise à jour pour ${kidooId} (modèle: ${model})`);
   } catch (error) {
     console.error('[GET-INFO] Erreur lors de la mise à jour de la base:', error);
     // Ne pas faire échouer la requête si la mise à jour échoue

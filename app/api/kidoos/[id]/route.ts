@@ -24,11 +24,13 @@ export const GET = withAuth(async (
     const { userId } = request;
     const { id } = await params;
 
-    // Récupérer le kidoo avec sa configuration Basic
+    // Récupérer le kidoo avec sa configuration (Basic, Dream, Sound)
     const kidoo = await prisma.kidoo.findUnique({
       where: { id },
       include: {
         configBasic: true,
+        configDream: true,
+        configSound: true,
       },
     });
 
@@ -41,21 +43,26 @@ export const GET = withAuth(async (
       return createErrorResponse(KidooErrors.NOT_OWNED);
     }
 
+    // Helper pour convertir une config (BigInt → Number, dates → ISO)
+    const convertConfigStorage = (config: any) => config ? {
+      ...config,
+      storageTotalBytes: config.storageTotalBytes ? Number(config.storageTotalBytes) : null,
+      storageFreeBytes: config.storageFreeBytes ? Number(config.storageFreeBytes) : null,
+      storageUsedBytes: config.storageUsedBytes ? Number(config.storageUsedBytes) : null,
+      storageLastUpdated: config.storageLastUpdated?.toISOString() || null,
+      createdAt: config.createdAt?.toISOString() || null,
+      updatedAt: config.updatedAt?.toISOString() || null,
+    } : null;
+
     // Convertir les dates en ISO strings et les BigInt en Number
     const kidooWithISOStrings = {
       ...kidoo,
       lastConnected: kidoo.lastConnected?.toISOString() || null,
       createdAt: kidoo.createdAt.toISOString(),
       updatedAt: kidoo.updatedAt.toISOString(),
-      configBasic: kidoo.configBasic ? {
-        ...kidoo.configBasic,
-        storageTotalBytes: kidoo.configBasic.storageTotalBytes ? Number(kidoo.configBasic.storageTotalBytes) : null,
-        storageFreeBytes: kidoo.configBasic.storageFreeBytes ? Number(kidoo.configBasic.storageFreeBytes) : null,
-        storageUsedBytes: kidoo.configBasic.storageUsedBytes ? Number(kidoo.configBasic.storageUsedBytes) : null,
-        createdAt: kidoo.configBasic.createdAt.toISOString(),
-        updatedAt: kidoo.configBasic.updatedAt.toISOString(),
-        storageLastUpdated: kidoo.configBasic.storageLastUpdated?.toISOString() || null,
-      } : null,
+      configBasic: convertConfigStorage(kidoo.configBasic),
+      configDream: convertConfigStorage(kidoo.configDream),
+      configSound: convertConfigStorage(kidoo.configSound),
     };
 
     return createSuccessResponse(kidooWithISOStrings, {

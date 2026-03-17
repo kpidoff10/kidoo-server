@@ -458,6 +458,10 @@ model KidooConfigDream {
   defaultEffect             String?
   wakeupAutoShutdown        Boolean                           @default(true)
   wakeupAutoShutdownMinutes Int?                              @default(30)
+  storageTotalBytes         BigInt?
+  storageFreeBytes          BigInt?
+  storageUsedBytes          BigInt?
+  storageLastUpdated        DateTime?
   kidoo                     Kidoo                             @relation(fields: [kidooId], references: [id], onDelete: Cascade)
   bedtimeSchedules          KidooConfigDreamBedtimeSchedule[]
   wakeupSchedules           KidooConfigDreamWakeupSchedule[]
@@ -499,16 +503,20 @@ model KidooConfigDreamWakeupSchedule {
 }
 
 model KidooConfigSound {
-  id        String   @id @default(uuid())
-  kidooId   String   @unique
-  colorR    Int?
-  colorG    Int?
-  colorB    Int?
-  brightness Int?
-  effect    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  kidoo     Kidoo    @relation(fields: [kidooId], references: [id], onDelete: Cascade)
+  id                  String   @id @default(uuid())
+  kidooId             String   @unique
+  colorR              Int?
+  colorG              Int?
+  colorB              Int?
+  brightness          Int?
+  effect              String?
+  storageTotalBytes   BigInt?
+  storageFreeBytes    BigInt?
+  storageUsedBytes    BigInt?
+  storageLastUpdated  DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  kidoo               Kidoo    @relation(fields: [kidooId], references: [id], onDelete: Cascade)
 
   @@index([kidooId])
   @@map("kidoo_config_sound")

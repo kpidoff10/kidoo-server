@@ -19,22 +19,41 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const { userId } = request;
 
-    // Récupérer les kidoos de l'utilisateur
+    // Récupérer les kidoos de l'utilisateur avec leurs configurations
     const kidoos = await prisma.kidoo.findMany({
       where: {
         userId,
+      },
+      include: {
+        configBasic: true,
+        configDream: true,
+        configSound: true,
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    // Convertir les dates en ISO strings pour la compatibilité JSON
+    // Helper pour convertir une config (BigInt → Number, dates → ISO)
+    const convertConfigStorage = (config: any) => config ? {
+      ...config,
+      storageTotalBytes: config.storageTotalBytes ? Number(config.storageTotalBytes) : null,
+      storageFreeBytes: config.storageFreeBytes ? Number(config.storageFreeBytes) : null,
+      storageUsedBytes: config.storageUsedBytes ? Number(config.storageUsedBytes) : null,
+      storageLastUpdated: config.storageLastUpdated?.toISOString() || null,
+      createdAt: config.createdAt?.toISOString() || null,
+      updatedAt: config.updatedAt?.toISOString() || null,
+    } : null;
+
+    // Convertir les dates en ISO strings et les BigInt en Number
     const kidoosWithISOStrings = kidoos.map((kidoo) => ({
       ...kidoo,
       lastConnected: kidoo.lastConnected?.toISOString() || null,
       createdAt: kidoo.createdAt.toISOString(),
       updatedAt: kidoo.updatedAt.toISOString(),
+      configBasic: convertConfigStorage(kidoo.configBasic),
+      configDream: convertConfigStorage(kidoo.configDream),
+      configSound: convertConfigStorage(kidoo.configSound),
     }));
 
     return createSuccessResponse(kidoosWithISOStrings, {
