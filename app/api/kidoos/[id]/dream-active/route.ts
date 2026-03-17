@@ -6,7 +6,7 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 
 /**
  * POST /api/kidoos/[id]/dream-active
@@ -52,10 +52,10 @@ export const POST = withAuth(async (
       });
     }
 
-    // Vérifier PubNub
-    if (!isPubNubConfigured()) {
+    // Vérifier mqtt
+    if (!isMqttConfigured()) {
       return createErrorResponse('SERVICE_UNAVAILABLE', 503, {
-        message: 'Service PubNub non configuré',
+        message: 'Service MQTT non configuré',
       });
     }
 

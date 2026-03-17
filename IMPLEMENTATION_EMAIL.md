@@ -345,7 +345,7 @@ Voir: `docs/EMAIL_SETUP.md`
 1. ⏳ Ajouter champs `resetToken` + `resetTokenExpiresAt` au modèle User
 2. ⏳ Tester la route `/api/auth/request-password-reset`
 3. ⏳ Créer la page frontend `/reset-password`
-4. ⏳ Intégrer alertes PubNub (envoyer email quand device offline)
+4. ⏳ Intégrer alertes mqtt (envoyer email quand device offline)
 
 ### Long terme
 1. 📧 Ajouter plus de templates (invites, confirmations, etc.)

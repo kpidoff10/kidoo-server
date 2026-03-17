@@ -29,7 +29,7 @@ npm install resend @react-email/components
 |----------|-------|---------|
 | `app/components/emails/WelcomeEmail.tsx` | Bienvenue après inscription | `POST /api/auth/register` |
 | `app/components/emails/PasswordResetEmail.tsx` | Réinitialisation mot de passe | `POST /api/auth/request-password-reset` |
-| `app/components/emails/NightimeAlertEmail.tsx` | Alertes device/sommeil | PubNub, webhooks |
+| `app/components/emails/NightimeAlertEmail.tsx` | Alertes device/sommeil | mqtt, webhooks |
 
 #### **Routes API (3 fichiers)**
 | Route | Méthode | Action |
@@ -273,7 +273,7 @@ curl -X POST http://localhost:3000/api/test/send-email \
 1. **Prisma Fields** - `resetToken` et `resetTokenExpiresAt` doivent être ajoutés manuellement au modèle User
 2. **Rate Limiting** - Pas de rate limiting sur `/request-password-reset` (à ajouter)
 3. **Frontend Pages** - Pages login/reset-password doivent être créées côté frontend
-4. **PubNub Integration** - Pas encore intégrée dans `lib/nighttime-alert.ts`
+4. **mqtt Integration** - Pas encore intégrée dans `lib/nighttime-alert.ts`
 5. **Webhook Signature** - Pas de validation HMAC sur webhooks
 
 ---
@@ -303,7 +303,7 @@ Features:
 Next steps:
 - Add resetToken/resetTokenExpiresAt to Prisma User model
 - Create frontend password reset page
-- Integrate with PubNub for device alerts
+- Integrate with mqtt for device alerts
 - Add rate limiting
 ```
 

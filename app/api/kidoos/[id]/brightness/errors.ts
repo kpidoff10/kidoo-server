@@ -35,10 +35,10 @@ export const BrightnessErrors = {
   },
   
   // Services
-  PUBNUB_NOT_CONFIGURED: {
-    code: 'PUBNUB_NOT_CONFIGURED',
+  mqtt_NOT_CONFIGURED: {
+    code: 'mqtt_NOT_CONFIGURED',
     status: 503,
-    message: 'PubNub non configuré sur le serveur',
+    message: 'MQTT non configuré sur le serveur',
   },
   
   COMMAND_FAILED: {

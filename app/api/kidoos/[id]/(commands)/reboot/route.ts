@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { rebootCommandSchema } from '@/shared';
 
 /**
@@ -81,17 +81,16 @@ export async function POST(
       );
     }
 
-    // Vérifier PubNub
-    if (!isPubNubConfigured()) {
+    // Vérifier mqtt
+    if (!isMqttConfigured()) {
       return NextResponse.json(
-        { success: false, error: 'PubNub non configuré sur le serveur' },
+        { success: false, error: 'MQTT non configuré sur le serveur' },
         { status: 503 }
       );
     }
 
-    // Envoyer la commande via PubNub
-    const commandParams = delay ? { delay } : undefined;
-    const sent = await sendCommand(kidoo.macAddress, 'reboot', { params: commandParams });
+    // Envoyer la commande via MQTT
+    const sent = await sendCommand(kidoo.macAddress, 'reboot', delay ? { delay } : {});
 
     if (!sent) {
       return NextResponse.json(

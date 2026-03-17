@@ -3,8 +3,8 @@
  * GET /api/kidoos/[id]/commands/get-info
  * 
  * Cette route:
- * 1. Envoie une commande get-info à l'ESP32 via PubNub
- * 2. Attend la réponse via l'API History de PubNub (timeout 5s)
+ * 1. Envoie une commande get-info à l'ESP32 via MQTT
+ * 2. Attend la réponse via l'API History de mqtt (timeout 5s)
  * 3. Met à jour la base de données avec les nouvelles infos
  * 4. Si timeout, renvoie les dernières valeurs connues de la base
  * 
@@ -14,7 +14,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
-import { sendCommand, isPubNubConfigured, waitForMessage } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured, waitForMessage } from '@/lib/mqtt';
+import { macEquals, formatMac } from '@/lib/mac-utils';
 import { KidooCommandAction } from '@kidoo/shared';
 import { Kidoo, KidooConfigBasic } from '@kidoo/shared/prisma';
 
@@ -67,13 +68,13 @@ export async function GET(
       );
     }
 
-    // Vérifier PubNub
-    if (!isPubNubConfigured()) {
-      // PubNub non configuré, renvoyer les données de la base si disponibles
-      return returnCachedData(kidoo, 'PubNub non configuré');
+    // Vérifier mqtt
+    if (!isMqttConfigured()) {
+      // MQTT non configuré, renvoyer les données de la base si disponibles
+      return returnCachedData(kidoo, 'MQTT non configuré');
     }
 
-    const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.GetInfo, { kidooId: id });
+    const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.GetInfo);
 
     if (!sent) {
       // Échec d'envoi, renvoyer les données de la base si disponibles
@@ -83,21 +84,16 @@ export async function GET(
     const response = await waitForMessage(kidoo.macAddress, 'info', {
       timeoutMs: RESPONSE_TIMEOUT_MS,
       pollIntervalMs: 500,
-      kidooId: id,
-      action: KidooCommandAction.GetInfo,
     });
 
     if (response) {
       // Mettre à jour l'adresse MAC si elle est différente (corriger les erreurs d'enregistrement)
       if (response.mac && typeof response.mac === 'string') {
-        // Nettoyer l'adresse MAC (enlever les : et -)
-        const cleanMac = response.mac.replace(/[:-]/g, '').toUpperCase();
-        const currentMac = kidoo.macAddress?.replace(/[:-]/g, '').toUpperCase();
-        
-        if (currentMac !== cleanMac) {
+        // Comparer les MACs (en normalisant les formats)
+        if (!macEquals(kidoo.macAddress, response.mac)) {
           await prisma.kidoo.update({
             where: { id: kidoo.id },
-            data: { macAddress: response.mac },
+            data: { macAddress: formatMac(response.mac) },
           });
           // Mettre à jour la variable locale pour les prochaines opérations
           kidoo.macAddress = response.mac;

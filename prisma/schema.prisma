@@ -154,7 +154,7 @@ model EmotionVideo {
 model EmotionDevice {
   id               String            @id @default(uuid())
   characterId      String
-  pubnubChannel    String?
+  mqttChannel      String?
   mode             EmotionDeviceMode @default(NORMAL)
   isCharging       Boolean           @default(false)
   lastSeenAt       DateTime?

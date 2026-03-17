@@ -8,7 +8,7 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { updateDreamBedtimeConfigSchema, hexToRgb, saturateRgbToMax } from '@/shared';
 
 /**
@@ -265,10 +265,10 @@ export const PATCH = withAuth(async (
       });
     }
 
-    // Envoyer la configuration à l'ESP32 via PubNub
-    if (kidoo.macAddress && isPubNubConfigured()) {
+    // Envoyer la configuration à l'ESP32 via MQTT
+    if (kidoo.macAddress && isMqttConfigured()) {
       try {
-        // Construire les paramètres PubNub (toujours envoyer weekdaySchedule pour que l'ESP reçoive la config complète)
+        // Construire les paramètres mqtt (toujours envoyer weekdaySchedule pour que l'ESP reçoive la config complète)
         const params: Record<string, unknown> = {
           colorR: updatedConfig.colorR ?? rgb.r,
           colorG: updatedConfig.colorG ?? rgb.g,
@@ -286,25 +286,25 @@ export const PATCH = withAuth(async (
           params.effect = updatedConfig.effect;
         }
 
-        // Construire le message PubNub avec la configuration
-        const pubnubMessage: Record<string, unknown> = {
+        // Construire le message mqtt avec la configuration
+        const mqttMessage: Record<string, unknown> = {
           action: 'set-bedtime-config',
           params,
         };
 
-        console.log('[DREAM-BEDTIME] Envoi configuration via PubNub:', JSON.stringify(pubnubMessage, null, 2));
-        await sendCommand(kidoo.macAddress, 'set-bedtime-config', { params: pubnubMessage.params as Record<string, unknown> });
-        console.log('[DREAM-BEDTIME] Configuration envoyée avec succès via PubNub');
+        console.log('[DREAM-BEDTIME] Envoi configuration via MQTT:', JSON.stringify(mqttMessage, null, 2));
+        await sendCommand(kidoo.macAddress, 'set-bedtime-config', mqttMessage.params as Record<string, unknown>);
+        console.log('[DREAM-BEDTIME] Configuration envoyée avec succès via MQTT');
       } catch (error) {
-        console.error('[DREAM-BEDTIME] Erreur lors de l\'envoi PubNub:', error);
-        // Ne pas faire échouer la requête si PubNub échoue, la config est déjà en base
+        console.error('[DREAM-BEDTIME] Erreur lors de l\'envoi mqtt:', error);
+        // Ne pas faire échouer la requête si MQTT échoue, la config est déjà en base
       }
     } else {
       if (!kidoo.macAddress) {
-        console.warn('[DREAM-BEDTIME] Adresse MAC manquante, impossible d\'envoyer via PubNub');
+        console.warn('[DREAM-BEDTIME] Adresse MAC manquante, impossible d\'envoyer via MQTT');
       }
-      if (!isPubNubConfigured()) {
-        console.warn('[DREAM-BEDTIME] PubNub non configuré, impossible d\'envoyer la configuration');
+      if (!isMqttConfigured()) {
+        console.warn('[DREAM-BEDTIME] MQTT non configuré, impossible d\'envoyer la configuration');
       }
     }
 

@@ -6,7 +6,7 @@
 
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { prisma } from '@/lib/prisma';
 
 export const POST = withAuth(async (
@@ -45,9 +45,9 @@ export const POST = withAuth(async (
       });
     }
 
-    if (!isPubNubConfigured()) {
+    if (!isMqttConfigured()) {
       return createErrorResponse('SERVICE_UNAVAILABLE', 503, {
-        message: 'Service PubNub non configuré',
+        message: 'Service MQTT non configuré',
       });
     }
 

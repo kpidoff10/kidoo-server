@@ -58,7 +58,7 @@ export async function processNighttimeAlert(mac: string): Promise<...> {
 
 ### 2. Envoyer un email quand un device se déconnecte
 
-**Contexte:** PubNub ou webhook device offline
+**Contexte:** mqtt ou webhook device offline
 
 **Exemple de route API:**
 

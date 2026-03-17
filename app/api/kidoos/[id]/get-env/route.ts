@@ -2,7 +2,7 @@
  * Route API pour récupérer température, humidité, pression (capteur env).
  * GET /api/kidoos/[id]/commands/get-env
  *
- * Envoie get-env via PubNub, attend la réponse type "env" (timeout 5s).
+ * Envoie get-env via MQTT, attend la réponse type "env" (timeout 5s).
  * Générique : tout modèle peut être interrogé ; le device renvoie available: false si pas de capteur.
  */
 
@@ -11,7 +11,7 @@ import type { KidooEnvResponse } from '@kidoo/shared';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
 import { KidooCommandAction } from '@kidoo/shared';
-import { sendCommand, isPubNubConfigured, waitForMessage, getLatestEnvFromHistory } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured, waitForMessage, getLatestEnvFromHistory } from '@/lib/mqtt';
 
 const RESPONSE_TIMEOUT_MS = 8000;
 
@@ -54,10 +54,10 @@ export async function GET(
       );
     }
 
-    if (!isPubNubConfigured()) {
+    if (!isMqttConfigured()) {
       return NextResponse.json({
         success: true,
-        data: { available: false, error: 'PubNub non configuré' } as KidooEnvResponse,
+        data: { available: false, error: 'MQTT non configuré' } as KidooEnvResponse,
       });
     }
 
@@ -77,7 +77,7 @@ export async function GET(
       return NextResponse.json({ success: true, data });
     }
 
-    const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.GetEnv, { kidooId: id });
+    const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.GetEnv);
     if (!sent) {
       return NextResponse.json({
         success: true,
@@ -89,8 +89,6 @@ export async function GET(
     let response = await waitForMessage(kidoo.macAddress, 'env', {
       timeoutMs: RESPONSE_TIMEOUT_MS,
       pollIntervalMs: 300,
-      kidooId: id,
-      action: KidooCommandAction.GetEnv,
     });
 
     // Fallback : le message a pu arriver pendant le timeout, vérifier l'historique une dernière fois

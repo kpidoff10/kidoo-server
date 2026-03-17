@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { sleepModeConfigSchema } from '@/shared';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 
 /**
  * GET /api/kidoos/[id]/sleep-mode
@@ -158,8 +158,8 @@ export const PATCH = withAuth(async (
       data: updateData as any,
     });
 
-    // Envoyer la commande via PubNub si configuré
-    if (isPubNubConfigured() && kidoo.macAddress) {
+    // Envoyer la commande via MQTT si configuré
+    if (isMqttConfigured() && kidoo.macAddress) {
       try {
         // Construire les paramètres de la commande pour l'ESP32
         const params: Record<string, unknown> = {};
@@ -176,11 +176,11 @@ export const PATCH = withAuth(async (
           params.effect = effect;
         }
 
-        await sendCommand(kidoo.macAddress, 'sleep-mode-config', { params });
-        console.log('[SLEEP-MODE] Commande envoyée via PubNub:', JSON.stringify({ action: 'sleep-mode-config', ...params }, null, 2));
-      } catch (pubnubError) {
-        console.error('[SLEEP-MODE] Erreur lors de l\'envoi de la commande PubNub:', pubnubError);
-        // Ne pas échouer la requête si PubNub échoue, la config est quand même sauvegardée
+        await sendCommand(kidoo.macAddress, 'sleep-mode-config', params);
+        console.log('[SLEEP-MODE] Commande envoyée via MQTT:', JSON.stringify({ action: 'sleep-mode-config', ...params }, null, 2));
+      } catch (mqttError) {
+        console.error('[SLEEP-MODE] Erreur lors de l\'envoi de la commande mqtt:', mqttError);
+        // Ne pas échouer la requête si MQTT échoue, la config est quand même sauvegardée
       }
     }
 

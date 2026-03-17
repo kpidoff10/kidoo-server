@@ -5,7 +5,7 @@
  *
  * Body: { "version": "1.0.1" }
  *
- * Même principe que get-info : envoie la commande via PubNub puis attend la réponse
+ * Même principe que get-info : envoie la commande via MQTT puis attend la réponse
  * (firmware-update-done ou firmware-update-failed) via l'API History.
  * Timeout explicite : si aucune réponse de l'ESP après OTA_RESPONSE_TIMEOUT_MS, retourne 408.
  */
@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
 import { KidooCommandAction } from '@kidoo/shared';
-import { sendCommand, isPubNubConfigured, waitForFirmwareUpdateResult } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured, waitForFirmwareUpdateResult } from '@/lib/mqtt';
 import { firmwareUpdateCommandSchema } from '@/shared';
 
 /** Délai max d'attente de la réponse OTA (done/failed) de l'ESP. Au-delà → 408 Request Timeout. */
@@ -84,16 +84,15 @@ export async function POST(
       );
     }
 
-    if (!isPubNubConfigured()) {
+    if (!isMqttConfigured()) {
       return NextResponse.json(
-        { success: false, error: 'PubNub non configuré sur le serveur' },
+        { success: false, error: 'MQTT non configuré sur le serveur' },
         { status: 503 }
       );
     }
 
     const sent = await sendCommand(kidoo.macAddress, KidooCommandAction.FirmwareUpdate, {
-      params: { version },
-      kidooId: id,
+      version,
     });
 
     if (!sent) {
@@ -107,9 +106,7 @@ export async function POST(
     const result = await waitForFirmwareUpdateResult(
       kidoo.macAddress,
       version,
-      OTA_RESPONSE_TIMEOUT_MS,
-      1500,
-      { kidooId: id, action: KidooCommandAction.FirmwareUpdate }
+      { timeoutMs: OTA_RESPONSE_TIMEOUT_MS, pollIntervalMs: 1500 }
     );
 
     if (result === null) {
@@ -126,7 +123,7 @@ export async function POST(
     if (result.status === 'done') {
       await prisma.kidoo.update({
         where: { id: kidoo.id },
-        data: { firmwareVersion: result.version },
+        data: { firmwareVersion: result.version as string },
       });
     }
 

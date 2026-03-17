@@ -1,23 +1,23 @@
 /**
- * Route API pour la config temps réel PubNub.
+ * Route API pour la config temps réel MQTT.
  * GET /api/kidoos/realtime-config
  *
- * Retourne subscribeKey et la liste des abonnements (channel + kidooId)
- * pour que l'app puisse s'abonner aux canaux des Kidoos de l'utilisateur.
+ * Retourne brokerUrl et la liste des abonnements (topic + kidooId)
+ * pour que l'app puisse se connecter au broker MQTT et s'abonner aux topics.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth-helpers';
-import { getKidooChannel, isPubNubConfigured } from '@/lib/pubnub';
+import { isMqttConfigured, getMqttTelemetryTopic } from '@/lib/mqtt';
 
 export interface RealtimeConfigSubscription {
-  channel: string;
+  topic: string;
   kidooId: string;
 }
 
 export interface RealtimeConfigResponse {
-  subscribeKey: string;
+  brokerUrl: string;
   subscriptions: RealtimeConfigSubscription[];
 }
 
@@ -30,10 +30,10 @@ export async function GET(request: NextRequest) {
 
     const { userId } = authResult;
 
-    if (!isPubNubConfigured()) {
+    if (!isMqttConfigured()) {
       return NextResponse.json({
         success: true,
-        data: { subscribeKey: '', subscriptions: [] } as RealtimeConfigResponse,
+        data: { brokerUrl: '', subscriptions: [] } as RealtimeConfigResponse,
       });
     }
 
@@ -45,16 +45,16 @@ export async function GET(request: NextRequest) {
     const subscriptions: RealtimeConfigSubscription[] = kidoos
       .filter((k) => k.macAddress)
       .map((k) => ({
-        channel: getKidooChannel(k.macAddress!),
+        topic: getMqttTelemetryTopic(k.macAddress!),
         kidooId: k.id,
       }));
 
-    const subscribeKey = process.env.PUBNUB_SUBSCRIBE_KEY || '';
+    const brokerUrl = process.env.MQTT_BROKER_URL_CLIENT || process.env.MQTT_BROKER_URL || '';
 
     return NextResponse.json({
       success: true,
       data: {
-        subscribeKey,
+        brokerUrl,
         subscriptions,
       } as RealtimeConfigResponse,
     });

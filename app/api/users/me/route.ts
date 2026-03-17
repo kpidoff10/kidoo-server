@@ -1,6 +1,6 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { prisma } from '@/lib/prisma';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 
 const VALID_TIMEZONES = [
@@ -55,8 +55,8 @@ export const PATCH = withAuth(async (request: AuthenticatedRequest) => {
       },
     });
 
-    // Si le timezone a changé, envoyer une commande PubNub à tous les appareils de l'utilisateur
-    if (timezoneId && isPubNubConfigured()) {
+    // Si le timezone a changé, envoyer une commande mqtt à tous les appareils de l'utilisateur
+    if (timezoneId && isMqttConfigured()) {
       try {
         const kidoos = await prisma.kidoo.findMany({
           where: { userId },
@@ -66,13 +66,13 @@ export const PATCH = withAuth(async (request: AuthenticatedRequest) => {
         for (const kidoo of kidoos) {
           if (kidoo.macAddress) {
             await sendCommand(kidoo.macAddress, 'set-timezone', {
-              params: { timezoneId },
+              timezoneId,
             });
           }
         }
       } catch (error) {
-        console.error('Erreur lors de l\'envoi de la commande set-timezone via PubNub:', error);
-        // Ne pas échouer la requête si PubNub échoue
+        console.error('Erreur lors de l\'envoi de la commande set-timezone via MQTT:', error);
+        // Ne pas échouer la requête si MQTT échoue
       }
     }
 

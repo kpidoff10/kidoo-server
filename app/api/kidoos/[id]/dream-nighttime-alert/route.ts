@@ -7,7 +7,7 @@
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 
 /**
  * GET /api/kidoos/[id]/dream-nighttime-alert
@@ -89,11 +89,10 @@ export const PATCH = withAuth(async (
       },
     });
 
-    // Envoyer la config à l'ESP via PubNub (comme brightness)
-    if (kidoo.macAddress && isPubNubConfigured()) {
+    // Envoyer la config à l'ESP via MQTT (comme brightness)
+    if (kidoo.macAddress && isMqttConfigured()) {
       await sendCommand(kidoo.macAddress, 'set-nighttime-alert', {
-        params: { enabled: nighttimeAlertEnabled },
-        kidooId: id,
+        enabled: nighttimeAlertEnabled,
       });
     }
 

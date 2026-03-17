@@ -1,12 +1,12 @@
 /**
  * Route API pour gérer la luminosité générale d'un Kidoo
- * PATCH /api/kidoos/[id]/brightness - Met à jour la luminosité et envoie via PubNub
+ * PATCH /api/kidoos/[id]/brightness - Met à jour la luminosité et envoie via MQTT
  */
 
 import { prisma } from '@/lib/prisma';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
-import { sendCommand, isPubNubConfigured } from '@/lib/pubnub';
+import { sendCommand, isMqttConfigured } from '@/lib/mqtt';
 import { z } from 'zod';
 
 const updateBrightnessSchema = z.object({
@@ -15,7 +15,7 @@ const updateBrightnessSchema = z.object({
 
 /**
  * PATCH /api/kidoos/[id]/brightness
- * Met à jour la luminosité et envoie la commande via PubNub
+ * Met à jour la luminosité et envoie la commande via MQTT
  */
 export const PATCH = withAuth(async (
   request: AuthenticatedRequest,
@@ -42,7 +42,7 @@ export const PATCH = withAuth(async (
       });
     }
 
-    // Vérifier que le Kidoo a une adresse MAC (nécessaire pour PubNub)
+    // Vérifier que le Kidoo a une adresse MAC (nécessaire pour MQTT)
     if (!kidoo.macAddress) {
       return createErrorResponse('BAD_REQUEST', 400, {
         message: 'Le Kidoo doit avoir une adresse MAC configurée',
@@ -71,20 +71,20 @@ export const PATCH = withAuth(async (
       },
     });
 
-    // Envoyer la commande via PubNub pour mise à jour en temps réel
-    if (isPubNubConfigured() && kidoo.macAddress) {
+    // Envoyer la commande via MQTT pour mise à jour en temps réel
+    if (isMqttConfigured() && kidoo.macAddress) {
       try {
-        const sent = await sendCommand(kidoo.macAddress, 'brightness', { params: { value: brightness } });
+        const sent = await sendCommand(kidoo.macAddress, 'brightness', { value: brightness });
         
         if (!sent) {
-          console.error('[BRIGHTNESS] Échec de l\'envoi PubNub');
-          // Ne pas faire échouer la requête si PubNub échoue, la valeur est déjà en base
+          console.error('[BRIGHTNESS] Échec de l\'envoi MQTT');
+          // Ne pas faire échouer la requête si MQTT échoue, la valeur est déjà en base
         } else {
-          console.log('[BRIGHTNESS] Commande brightness envoyée avec succès via PubNub');
+          console.log('[BRIGHTNESS] Commande brightness envoyée avec succès via MQTT');
         }
       } catch (error) {
-        console.error('[BRIGHTNESS] Erreur lors de l\'envoi PubNub:', error);
-        // Ne pas faire échouer la requête si PubNub échoue, la valeur est déjà en base
+        console.error('[BRIGHTNESS] Erreur lors de l\'envoi MQTT:', error);
+        // Ne pas faire échouer la requête si MQTT échoue, la valeur est déjà en base
       }
     }
 
