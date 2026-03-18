@@ -95,17 +95,15 @@ export async function POST(request: NextRequest) {
 
     // Validation selon le type de client
     if (client.type === 'server') {
-      // Server: valider le password statique
-      if (password !== process.env.MQTT_PASSWORD) {
-        console.warn('[MQTT-AUTH] Password invalide pour server');
-        return NextResponse.json(
-          { result: false },
-          { status: 200 }
-        );
-      }
+      // Server: plus supporté (serverless)
+      console.warn('[MQTT-AUTH] Server connection not supported');
+      return NextResponse.json(
+        { result: false },
+        { status: 200 }
+      );
     } else if (client.type === 'device') {
-      // Device (ESP32): valider le password statique
-      if (password !== process.env.MQTT_PASSWORD) {
+      // Device (ESP32): valider que password = MAC address
+      if (password !== client.id) {
         console.warn('[MQTT-AUTH] Password invalide pour device:', client.id);
         return NextResponse.json(
           { result: false },
