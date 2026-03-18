@@ -8,12 +8,7 @@ import { verifyAccessToken, extractTokenFromHeader } from '@/lib/jwt';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Essayer le header (avec les deux casses pour compatibilité)
-    let authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      authHeader = request.headers.get('Authorization');
-    }
-
+    const authHeader = request.headers.get('authorization');
     const token = extractTokenFromHeader(authHeader);
 
     if (!token) {
@@ -79,12 +74,7 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // Essayer le header (avec les deux casses pour compatibilité)
-    let authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      authHeader = request.headers.get('Authorization');
-    }
-
+    const authHeader = request.headers.get('authorization');
     const token = extractTokenFromHeader(authHeader);
 
     if (!token) {
