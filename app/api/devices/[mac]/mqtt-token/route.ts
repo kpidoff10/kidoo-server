@@ -22,14 +22,14 @@ async function handler(
   console.log(`[MQTT-TOKEN] Credentials demandées pour device: ${mac}`);
 
   // Signature valide (vérifiée par withDeviceAuth) - retourner les credentials MQTT
-  // Username = MAC address (pour identifier les devices ESP32)
-  // Password = MAC address (pour validation simple)
+  // Tous les ESP32 utilisent les mêmes credentials fixes
+  // L'authentification par device se fait via signature Ed25519
   return NextResponse.json({
     success: true,
     data: {
-      mqttUrl: process.env.MQTT_BROKER_URL || 'mqtts://mqtt.kidoo-box.com:8883',
-      mqttUsername: mac,
-      mqttPassword: mac,
+      mqttUrl: process.env.MQTT_BROKER_URL || 'mqtts://s27572bb.ala.us-east-1.emqxsl.com:8883',
+      mqttUsername: 'esp32',
+      mqttPassword: process.env.MQTT_PASSWORD || 'changeme',
       expiresIn: 3600,
     },
   });

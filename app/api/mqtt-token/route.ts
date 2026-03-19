@@ -1,30 +1,13 @@
 /**
- * Route API pour obtenir un token MQTT temporaire
+ * Route API pour obtenir les credentials MQTT
  * GET /api/mqtt-token
  *
- * Génère des credentials MQTT uniques par utilisateur avec JWT signé
- * Format: username=kidoo_user_{userId}, password=JWT_token
+ * Retourne les credentials MQTT fixes pour l'app
+ * Tous les utilisateurs partagent les mêmes credentials (authentification via NextAuth)
  */
 
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-response';
-import { SignJWT } from 'jose';
-
-/**
- * Générer un JWT signé pour utiliser comme password MQTT
- */
-async function generateMqttJwt(userId: string): Promise<string> {
-  const secret = new TextEncoder().encode(
-    process.env.MQTT_JWT_SECRET || 'kidoo-mqtt-secret-key-change-in-prod'
-  );
-
-  const jwt = await new SignJWT({ userId, type: 'mqtt' })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('1h')
-    .sign(secret);
-
-  return jwt;
-}
 
 export const GET = withAuth(async (request: AuthenticatedRequest) => {
   try {
@@ -36,18 +19,22 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
       });
     }
 
-    // Générer credentials uniques par user
-    // Username = userId directement (pour identifier les apps)
-    const mqttUsername = userId;
-    const mqttPassword = await generateMqttJwt(userId);
+    const mqttUrl = process.env.MQTT_BROKER_URL_CLIENT || 'wss://s27572bb.ala.us-east-1.emqxsl.com:8084/mqtt';
+    const mqttUsername = 'app';
+    const mqttPassword = process.env.MQTT_PASSWORD_APP || 'changeme';
 
-    console.log('[MQTT-TOKEN] JWT généré pour user:', userId);
+    console.log('[MQTT-TOKEN] Credentials retournées pour user:', userId);
+    console.log('[MQTT-TOKEN] URL:', mqttUrl);
+    console.log('[MQTT-TOKEN] Username:', mqttUsername);
+    console.log('[MQTT-TOKEN] Password length:', mqttPassword.length);
 
+    // Retourner les credentials MQTT fixes
+    // Tous les utilisateurs authentifiés accèdent au même broker avec les mêmes credentials
     return createSuccessResponse({
-      mqttUrl: process.env.MQTT_BROKER_URL_CLIENT || 'ws://mqtt.kidoo-box.com:9001',
+      mqttUrl,
       mqttUsername,
       mqttPassword,
-      expiresIn: 3600, // 1 heure
+      expiresIn: 3600,
     });
   } catch (error) {
     console.error('[MQTT-TOKEN] Erreur:', error);

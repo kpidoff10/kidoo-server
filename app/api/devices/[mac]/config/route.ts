@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { withDeviceAuth } from '@/lib/withDeviceAuth';
+import { deriveDeviceSecret } from '@/lib/cmd-jwt';
 
 function normalizeMacAddress(mac: string): string {
   return mac.replace(/[:.\-]/g, '').toUpperCase();
@@ -53,11 +54,9 @@ export const GET = withDeviceAuth(async (request, { params }) => {
       });
     }
 
-    if (kidoo.model !== 'dream') {
-      return createErrorResponse('BAD_REQUEST', 400, {
-        message: 'Cette configuration est uniquement disponible pour le modèle Dream',
-      });
-    }
+    // Note: Cet endpoint est maintenant générique pour tous les modèles
+    // (cmdTokenSecret est commun à Dream, Sound, Gotchi)
+    // Seuls les configs spécifiques au modèle (bedtime, wakeup) sont omises pour non-Dream
 
     const response: {
       bedtime?: {
@@ -84,83 +83,97 @@ export const GET = withDeviceAuth(async (request, { params }) => {
       } | null;
       nighttimeAlertEnabled?: boolean;
       timezoneId?: string;
+      cmdTokenSecret?: string;
     } = {};
 
-    if (kidoo.configDream) {
-      let bedtimeWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
-      if (kidoo.configDream.bedtimeSchedules && kidoo.configDream.bedtimeSchedules.length > 0) {
-        bedtimeWeekdaySchedule = {};
-        kidoo.configDream.bedtimeSchedules.forEach((schedule) => {
-          bedtimeWeekdaySchedule![schedule.weekday.toLowerCase()] = {
-            hour: schedule.hour,
-            minute: schedule.minute,
-            activated: schedule.activated,
-          };
-        });
+    // Configuration spécifique au modèle Dream
+    const isDream = kidoo.model === 'dream';
+
+    // Inclure les configs spécifiques à Dream uniquement pour les devices Dream
+    if (isDream) {
+      if (kidoo.configDream) {
+        let bedtimeWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
+        if (kidoo.configDream.bedtimeSchedules && kidoo.configDream.bedtimeSchedules.length > 0) {
+          bedtimeWeekdaySchedule = {};
+          kidoo.configDream.bedtimeSchedules.forEach((schedule) => {
+            bedtimeWeekdaySchedule![schedule.weekday.toLowerCase()] = {
+              hour: schedule.hour,
+              minute: schedule.minute,
+              activated: schedule.activated,
+            };
+          });
+        }
+
+        response.bedtime = {
+          weekdaySchedule: bedtimeWeekdaySchedule,
+          colorR: kidoo.configDream.colorR ?? 255,
+          colorG: kidoo.configDream.colorG ?? 107,
+          colorB: kidoo.configDream.colorB ?? 107,
+          brightness: kidoo.configDream.brightness ?? 50,
+          nightlightAllNight: kidoo.configDream.allNight ?? false,
+        };
+
+        let wakeupWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
+        if (kidoo.configDream.wakeupSchedules && kidoo.configDream.wakeupSchedules.length > 0) {
+          wakeupWeekdaySchedule = {};
+          kidoo.configDream.wakeupSchedules.forEach((schedule) => {
+            wakeupWeekdaySchedule![schedule.weekday.toLowerCase()] = {
+              hour: schedule.hour,
+              minute: schedule.minute,
+              activated: schedule.activated,
+            };
+          });
+        }
+
+        response.wakeup = {
+          weekdaySchedule: wakeupWeekdaySchedule,
+          colorR: kidoo.configDream.wakeupColorR ?? 255,
+          colorG: kidoo.configDream.wakeupColorG ?? 200,
+          colorB: kidoo.configDream.wakeupColorB ?? 100,
+          brightness: kidoo.configDream.wakeupBrightness ?? 50,
+        };
+
+        response.defaultColor = kidoo.configDream.defaultColorR != null ? {
+          colorR: kidoo.configDream.defaultColorR,
+          colorG: kidoo.configDream.defaultColorG ?? 255,
+          colorB: kidoo.configDream.defaultColorB ?? 255,
+          brightness: kidoo.configDream.defaultBrightness ?? 50,
+          effect: kidoo.configDream.defaultEffect ?? 'static',
+        } : null;
+
+        response.nighttimeAlertEnabled = kidoo.configDream.nighttimeAlertEnabled ?? false;
+      } else {
+        // Dream sans config: retourner valeurs par défaut
+        response.bedtime = {
+          weekdaySchedule: undefined,
+          colorR: 255,
+          colorG: 107,
+          colorB: 107,
+          brightness: 50,
+          nightlightAllNight: false,
+        };
+
+        response.wakeup = {
+          weekdaySchedule: undefined,
+          colorR: 255,
+          colorG: 200,
+          colorB: 100,
+          brightness: 50,
+        };
+
+        response.defaultColor = null;
+        response.nighttimeAlertEnabled = false;
       }
-
-      response.bedtime = {
-        weekdaySchedule: bedtimeWeekdaySchedule,
-        colorR: kidoo.configDream.colorR ?? 255,
-        colorG: kidoo.configDream.colorG ?? 107,
-        colorB: kidoo.configDream.colorB ?? 107,
-        brightness: kidoo.configDream.brightness ?? 50,
-        nightlightAllNight: kidoo.configDream.allNight ?? false,
-      };
-
-      let wakeupWeekdaySchedule: Record<string, { hour: number; minute: number; activated: boolean }> | undefined;
-      if (kidoo.configDream.wakeupSchedules && kidoo.configDream.wakeupSchedules.length > 0) {
-        wakeupWeekdaySchedule = {};
-        kidoo.configDream.wakeupSchedules.forEach((schedule) => {
-          wakeupWeekdaySchedule![schedule.weekday.toLowerCase()] = {
-            hour: schedule.hour,
-            minute: schedule.minute,
-            activated: schedule.activated,
-          };
-        });
-      }
-
-      response.wakeup = {
-        weekdaySchedule: wakeupWeekdaySchedule,
-        colorR: kidoo.configDream.wakeupColorR ?? 255,
-        colorG: kidoo.configDream.wakeupColorG ?? 200,
-        colorB: kidoo.configDream.wakeupColorB ?? 100,
-        brightness: kidoo.configDream.wakeupBrightness ?? 50,
-      };
-
-      response.defaultColor = kidoo.configDream.defaultColorR != null ? {
-        colorR: kidoo.configDream.defaultColorR,
-        colorG: kidoo.configDream.defaultColorG ?? 255,
-        colorB: kidoo.configDream.defaultColorB ?? 255,
-        brightness: kidoo.configDream.defaultBrightness ?? 50,
-        effect: kidoo.configDream.defaultEffect ?? 'static',
-      } : null;
-    } else {
-      response.bedtime = {
-        weekdaySchedule: undefined,
-        colorR: 255,
-        colorG: 107,
-        colorB: 107,
-        brightness: 50,
-        nightlightAllNight: false,
-      };
-
-      response.wakeup = {
-        weekdaySchedule: undefined,
-        colorR: 255,
-        colorG: 200,
-        colorB: 100,
-        brightness: 50,
-      };
-
-      response.defaultColor = null;
-      response.nighttimeAlertEnabled = false;
     }
+    // Pour Sound/Gotchi: ne pas inclure les champs bedtime/wakeup/defaultColor/nighttimeAlertEnabled
 
     // Ajouter le timezone du profil utilisateur
     if (kidoo.user?.timezoneId) {
       response.timezoneId = kidoo.user.timezoneId;
     }
+
+    // Ajouter le secret dérivé pour vérifier les tokens de commande MQTT (unique par device)
+    response.cmdTokenSecret = deriveDeviceSecret(normalizedMac).toString('base64');
 
     return createSuccessResponse(response);
   } catch (error) {
