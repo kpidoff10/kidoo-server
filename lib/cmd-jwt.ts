@@ -44,6 +44,19 @@ export function deriveDeviceSecret(mac: string): Buffer {
 }
 
 /**
+ * Encode un buffer en base64url (compatible avec décodage ESP32)
+ * @param buffer - Buffer à encoder
+ * @returns String base64url (+ → -, / → _, pas de padding)
+ */
+export function toBase64url(buffer: Buffer): string {
+  return buffer
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+/**
  * Génère un token de commande JWT
  * @param payload - Données à inclure dans le token (doit contenir kidooMac)
  * @returns Token JWT signé avec la clé dérivée pour ce device

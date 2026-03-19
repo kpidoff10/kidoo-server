@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-response';
 import { withDeviceAuth } from '@/lib/withDeviceAuth';
-import { deriveDeviceSecret } from '@/lib/cmd-jwt';
+import { deriveDeviceSecret, toBase64url } from '@/lib/cmd-jwt';
 
 function normalizeMacAddress(mac: string): string {
   return mac.replace(/[:.\-]/g, '').toUpperCase();
@@ -172,8 +172,8 @@ export const GET = withDeviceAuth(async (request, { params }) => {
       response.timezoneId = kidoo.user.timezoneId;
     }
 
-    // Ajouter le secret dérivé pour vérifier les tokens de commande MQTT (unique par device)
-    response.cmdTokenSecret = deriveDeviceSecret(normalizedMac).toString('base64');
+    // Ajouter le secret dérivé pour vérifier les tokens de commande MQTT (unique par device, en base64url)
+    response.cmdTokenSecret = toBase64url(deriveDeviceSecret(normalizedMac));
 
     return createSuccessResponse(response);
   } catch (error) {
